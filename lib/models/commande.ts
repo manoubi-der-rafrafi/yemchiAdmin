@@ -36,6 +36,7 @@ export interface Commande extends Document {
   statut?: string; // à faire matcher avec ton enum Java (EN_ATTENTE, EN_COURS, etc.)
   prix?: number | null;
   mode_paiement?: string | null;
+  modePaiement?: string | null;
   instructions?: string | null;
 
   telDepart?: number | null;
@@ -77,6 +78,7 @@ const commandeSchema = new Schema<Commande>(
 
     prix: { type: Number, default: null },
     mode_paiement: { type: String, default: null },
+    modePaiement: { type: String, default: null },
     instructions: { type: String, default: null },
 
     telDepart: { type: Number, default: null },

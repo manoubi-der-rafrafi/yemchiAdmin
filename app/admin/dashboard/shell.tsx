@@ -48,6 +48,13 @@ const icons = {
       <path d="M10 9h6" stroke="currentColor" />
     </svg>
   ),
+  tarification: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5 stroke-[1.8] text-sky-600">
+      <path d="M5 7h14a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" />
+      <path d="M16 11a2 2 0 1 1 0 4 2 2 0 0 1 0-4Z" fill="currentColor" className="opacity-20" />
+      <path d="M7 12h5" stroke="currentColor" />
+    </svg>
+  ),
   livreur: (
     <svg viewBox="0 0 24 24" className="h-5 w-5 stroke-[1.8] text-sky-600">
       <rect x="3" y="5" width="10" height="10" rx="2" fill="none" stroke="currentColor" />
@@ -75,22 +82,30 @@ const navItems: NavItem[] = [
   { label: "Gerer demande", href: "/admin/demande", icon: icons.demande, section: "Gestion" },
   { label: "Gerer commande", href: "/admin/commandes", icon: icons.commande, section: "Gestion" },
   { label: "Gerer livreur", href: "/admin/livreurs", icon: icons.livreur, section: "Gestion" },
+  {
+    label: "Tarification livreurs",
+    href: "/admin/tarification-livreurs",
+    icon: icons.tarification,
+    section: "Gestion financière",
+  },
   { label: "Gerer messages", href: "/admin/messages", icon: icons.messages, section: "Communication" },
   { label: "Setting", href: "/admin/settings", icon: icons.settings, section: "Paramètres" },
 ];
 
-const sectionsOrder = ["Tableau de bord", "Gestion", "Communication", "Paramètres"] as const;
+const sectionsOrder = ["Tableau de bord", "Gestion", "Gestion financière", "Communication", "Paramètres"] as const;
 
 export function DashboardShell({
   payload,
   children,
   title = "Dashboard",
   subtitle = "Tableau de bord",
+  headerAction,
 }: {
   payload: JwtPayload;
   children?: React.ReactNode;
   title?: string;
   subtitle?: string;
+  headerAction?: React.ReactNode;
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -251,9 +266,12 @@ export function DashboardShell({
 
       <main className="flex-1">
         <div className="max-w-5xl mx-auto px-10 py-10 space-y-4">
-          <div>
-            <p className="text-sm text-slate-500">{subtitle}</p>
-            <h1 className="text-3xl font-semibold text-slate-900">{title}</h1>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm text-slate-500">{subtitle}</p>
+              <h1 className="text-3xl font-semibold text-slate-900">{title}</h1>
+            </div>
+            {headerAction && <div className="flex-shrink-0">{headerAction}</div>}
           </div>
 
           {children ?? (

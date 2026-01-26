@@ -13,6 +13,8 @@ export interface Utilisateur extends Document {
   telephone?: string;
   role?: Role;
   adresse?: string;
+  identifiant?: string;
+  typeVehicule?: string;
 
   image?: string | null;
   imageCarteIdentiteFace?: string | null;
@@ -22,7 +24,7 @@ export interface Utilisateur extends Document {
   imageAssurance?: string | null;
 
   statut?: Statut;
-  date_creation?: string;
+  dateCreation?: string;
 }
 
 const utilisateurSchema = new Schema<Utilisateur>(
@@ -36,6 +38,8 @@ const utilisateurSchema = new Schema<Utilisateur>(
     telephone: { type: String },
     role: { type: String, enum: ['client', 'transporteur', 'admin'], default: 'client' },
     adresse: { type: String },
+    identifiant: { type: String },
+    typeVehicule: { type: String },
 
     image: { type: String, default: null },
     imageCarteIdentiteFace: { type: String, default: null },
@@ -45,9 +49,21 @@ const utilisateurSchema = new Schema<Utilisateur>(
     imageAssurance: { type: String, default: null },
 
     statut: { type: String, enum: ['actif', 'inactif', 'banni'], default: 'actif' },
-    date_creation: { type: String },
+    dateCreation: { type: String, default: () => new Date().toISOString() },
   },
-  { timestamps: true, collection: "utilisateur" }
+  { timestamps: false, collection: "utilisateur" }
+);
+
+// Unique identifiant only for transporteur users
+utilisateurSchema.index(
+  { identifiant: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      role: 'transporteur',
+      identifiant: { $exists: true, $type: 'string' },
+    },
+  }
 );
 
 // Prevent model overwrite in Next.js (Hot Reload)

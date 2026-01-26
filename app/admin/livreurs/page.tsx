@@ -14,7 +14,7 @@ type LivreurDto = {
   statut?: string | null;
   adresse?: string | null;
   image?: string | null;
-  date_creation?: string | null;
+  dateCreation?: string | null;
 };
 
 const extractRole = (payload: Record<string, unknown>) => {
@@ -51,7 +51,12 @@ export default async function AdminLivreursPage() {
     statut: livreur.statut ?? null,
     adresse: livreur.adresse ?? null,
     image: (livreur as any).image ?? null,
-    date_creation: (livreur as any).date_creation ?? null,
+    dateCreation: (() => {
+      const dateValue = (livreur as any).dateCreation ?? (livreur as any).createdAt;
+      if (!dateValue) return null;
+      if (dateValue instanceof Date) return dateValue.toISOString();
+      return String(dateValue);
+    })(),
   }));
 
   return <LivreursPageContent payload={payload as JwtPayload} livreurs={livreursDto} />;

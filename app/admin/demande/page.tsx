@@ -14,6 +14,8 @@ type DemandeDto = {
   dateDemande?: string;
   dateReponse?: string | null;
   reponse: ReponseDemande;
+  dossierPhysique?: boolean;
+  causesRefus?: Record<string, string[]>;
   imageCarteIdentiteFace: string;
   imageCarteIdentiteArriere: string;
   imagePermis: string;
@@ -44,7 +46,7 @@ export default async function AdminDemandePage() {
     redirect("/auth");
   }
 
-  const demandes = await demandeService.list();
+  const demandes = await demandeService.list({ dossierPhysique: { $ne: true } });
 
   const demandesDto: DemandeDto[] = demandes.map((demande: Demande) => ({
     id: demande._id.toString(),
@@ -55,6 +57,11 @@ export default async function AdminDemandePage() {
     dateDemande: demande.dateDemande ?? undefined,
     dateReponse: demande.dateReponse ?? null,
     reponse: (demande.reponse as ReponseDemande | undefined) ?? ReponseDemande.NON_TRAITER,
+    dossierPhysique: demande.dossierPhysique ?? false,
+    causesRefus:
+      demande.causesRefus instanceof Map
+        ? Object.fromEntries(demande.causesRefus.entries())
+        : demande.causesRefus ?? undefined,
     imageCarteIdentiteFace: demande.imageCarteIdentiteFace,
     imageCarteIdentiteArriere: demande.imageCarteIdentiteArriere,
     imagePermis: demande.imagePermis,

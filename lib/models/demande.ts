@@ -18,6 +18,7 @@ export interface Demande extends Document {
   nom: string;
   prenom: string;
   numero: string;
+  email?: string;
   typeVehicule: TypeVehicule;
 
   imageCarteIdentiteFace: string;
@@ -29,6 +30,8 @@ export interface Demande extends Document {
   dateDemande?: string;
   dateReponse?: string | null;
   reponse?: ReponseDemande;
+  causesRefus?: Record<string, string[]>;
+  dossierPhysique?: boolean;
 }
 
 const demandeSchema = new Schema<Demande>(
@@ -36,6 +39,7 @@ const demandeSchema = new Schema<Demande>(
     nom: { type: String, required: true },
     prenom: { type: String, required: true },
     numero: { type: String, required: true },
+    email: { type: String },
 
     typeVehicule: {
       type: String,
@@ -55,6 +59,12 @@ const demandeSchema = new Schema<Demande>(
       type: String,
       enum: Object.values(ReponseDemande),
       default: ReponseDemande.NON_TRAITER,
+    },
+    dossierPhysique: { type: Boolean, default: false },
+    causesRefus: {
+      type: Map,
+      of: [String],
+      default: {},
     },
   },
   { timestamps: true }

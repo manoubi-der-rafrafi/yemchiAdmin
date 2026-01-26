@@ -1,8 +1,17 @@
 import { connectDB } from "../config/db";
 import CommandeModel, { type Commande } from "../models/commande";
+import { Types } from "mongoose";
 import "../models/utilisateur"; // ensure Utilisateur schema is registered for populate
 
 export const commandeRepository = {
+  buildTransporteurMatch(livreurId: string) {
+    const matchTransporteur: Record<string, unknown> = { transporteurId: livreurId };
+    if (Types.ObjectId.isValid(livreurId)) {
+      matchTransporteur.$or = [{ transporteurId: new Types.ObjectId(livreurId) }, { transporteurId: livreurId }];
+      delete matchTransporteur.transporteurId;
+    }
+    return matchTransporteur;
+  },
   async findAll(
     filter: Parameters<(typeof CommandeModel)["find"]>[0] = {}
   ) {
@@ -37,5 +46,58 @@ export const commandeRepository = {
   async deleteById(id: string) {
     await connectDB();
     return CommandeModel.findByIdAndDelete(id).exec();
+  },
+
+  async sumPrixByLivreurId(livreurId: string) {
+    await connectDB();
+    const matchTransporteur = this.buildTransporteurMatch(livreurId);
+    const result = await CommandeModel.aggregate([
+      { $match: { statut: { $regex: /^livree$/i } } },
+      { $match: matchTransporteur },
+      { $group: { _id: null, total: { $sum: { $ifNull: ["$prix", 0] } } } },
+    ]);
+    return result[0]?.total ?? 0;
+  },
+
+  async sumPrixLivreeEnligneByTransporteurId(livreurId: string) {
+    await connectDB();
+    const matchTransporteur = this.buildTransporteurMatch(livreurId);
+    const result = await CommandeModel.aggregate([
+      {
+        $match: {
+          statut: { $regex: /^livree$/i },
+          modePaiement: { $regex: /^enligne$/i },
+        },
+      },
+      { $match: matchTransporteur },
+      { $group: { _id: null, total: { $sum: { $ifNull: ["$prix", 0] } } } },
+    ]);
+    return result[0]?.total ?? 0;
+  },
+
+  async sumPrixLivreeHorsEnligneByTransporteurId(livreurId: string) {
+    await connectDB();
+    const matchTransporteur = this.buildTransporteurMatch(livreurId);
+    const result = await CommandeModel.aggregate([
+      {
+        $match: {
+          statut: { $regex: /^livree$/i },
+          modePaiement: { $not: /^enligne$/i },
+        },
+      },
+      { $match: matchTransporteur },
+      { $group: { _id: null, total: { $sum: { $ifNull: ["$prix", 0] } } } },
+    ]);
+    return result[0]?.total ?? 0;
+  },
+
+  async findLivreeByTransporteurId(livreurId: string) {
+    await connectDB();
+    const matchTransporteur = this.buildTransporteurMatch(livreurId);
+    return CommandeModel.aggregate([
+      { $match: { statut: { $regex: /^livree$/i } } },
+      { $match: matchTransporteur },
+      { $sort: { dateDemande: -1, date_demande: -1, createdAt: -1 } },
+    ]);
   },
 };

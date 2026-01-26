@@ -19,4 +19,16 @@ export const commandeService = {
   remove(id: string) {
     return commandeRepository.deleteById(id);
   },
+  sumPrixByLivreurId(id: string) {
+    return commandeRepository.sumPrixByLivreurId(id);
+  },
+  sumPrixLivreeEnligneByTransporteurId(id: string) {
+    return commandeRepository.sumPrixLivreeEnligneByTransporteurId(id);
+  },
+  sumPrixLivreeHorsEnligneByTransporteurId(id: string) {
+    return commandeRepository.sumPrixLivreeHorsEnligneByTransporteurId(id);
+  },
+  listLivreeByTransporteurId(id: string) {
+    return commandeRepository.findLivreeByTransporteurId(id);
+  },
 };

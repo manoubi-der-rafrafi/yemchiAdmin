@@ -13,7 +13,18 @@ type LivreurRow = {
   statut?: string | null;
   adresse?: string | null;
   image?: string | null;
-  date_creation?: string | null;
+  dateCreation?: string | null;
+};
+
+const formatDate = (value?: string | null) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
 };
 
 export function LivreursPageContent({
@@ -58,7 +69,7 @@ export function LivreursPageContent({
   return (
     <DashboardShell payload={payload} title="Gestion des livreurs" subtitle="Livreurs">
       <div className="rounded-2xl border border-white/70 bg-white/80 backdrop-blur shadow-sm shadow-[0_18px_60px_rgba(14,165,233,0.08)]">
-        <div className="flex flex-wrap items-center gap-3 px-6 py-4">
+        <div className="flex flex-wrap items-center gap-2 px-5 py-3">
           <div className="flex gap-2">
             {statusOptions.map((status) => {
               const active = status === statusFilter;
@@ -67,7 +78,7 @@ export function LivreursPageContent({
                   key={status}
                   type="button"
                   onClick={() => setStatusFilter(status)}
-                  className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all ${
+                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${
                     active
                       ? "border-sky-200 bg-sky-50 text-sky-700 shadow-[0_8px_24px_rgba(14,165,233,0.16)]"
                       : "border-slate-200 text-slate-600 hover:bg-slate-50"
@@ -85,33 +96,33 @@ export function LivreursPageContent({
               placeholder="Rechercher (nom, email, tel)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-10 w-full max-w-md rounded-full border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
+              className="h-9 w-full max-w-md rounded-full border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
             />
           </div>
 
-          <span className="text-sm text-slate-500">
+          <span className="text-xs text-slate-500">
             {filtered.length} livreur{filtered.length > 1 ? "s" : ""} | Page {currentPage}/{totalPages}
           </span>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm" style={{ minWidth: 960 }}>
+          <table className="w-full text-xs" style={{ minWidth: 900 }}>
             <thead className="border-t border-b border-slate-100 bg-slate-50/60 text-left text-slate-500">
               <tr>
-                <th className="px-6 py-3 font-semibold">Livreur</th>
-                <th className="px-6 py-3 font-semibold">Email</th>
-                <th className="px-6 py-3 font-semibold">Telephone</th>
-                <th className="px-6 py-3 font-semibold">Statut</th>
-                <th className="px-6 py-3 font-semibold">Adresse</th>
-                <th className="px-6 py-3 font-semibold text-right">Date creation</th>
+                <th className="px-5 py-2.5 font-semibold">Livreur</th>
+                <th className="px-5 py-2.5 font-semibold">Email</th>
+                <th className="px-5 py-2.5 font-semibold">Telephone</th>
+                <th className="px-5 py-2.5 font-semibold">Statut</th>
+                <th className="px-5 py-2.5 font-semibold">Adresse</th>
+                <th className="px-5 py-2.5 font-semibold text-right">Date creation</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {paginated.map((livreur) => (
                 <tr key={livreur.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4 font-semibold text-slate-900">
+                  <td className="px-5 py-3 font-semibold text-slate-900">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center text-xs text-slate-500">
+                      <div className="h-9 w-9 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center text-[11px] text-slate-500">
                         {livreur.image ? (
                           <img src={livreur.image} alt="Livreur" className="h-full w-full object-cover" />
                         ) : (
@@ -123,24 +134,24 @@ export function LivreursPageContent({
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-slate-700">{livreur.email}</td>
-                  <td className="px-6 py-4 text-slate-700">{livreur.telephone ?? "-"}</td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+                  <td className="px-5 py-3 text-slate-700">{livreur.email}</td>
+                  <td className="px-5 py-3 text-slate-700">{livreur.telephone ?? "-"}</td>
+                  <td className="px-5 py-3">
+                    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700">
                       <span className="h-2 w-2 rounded-full bg-sky-500" />
                       {livreur.statut ?? "Sans statut"}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-slate-700">{livreur.adresse ?? "-"}</td>
-                  <td className="px-6 py-4 text-right text-slate-700">
-                    {livreur.date_creation ?? "-"}
+                  <td className="px-5 py-3 text-slate-700">{livreur.adresse ?? "-"}</td>
+                  <td className="px-5 py-3 text-right text-slate-700">
+                    {formatDate(livreur.dateCreation)}
                   </td>
                 </tr>
               ))}
 
               {filtered.length === 0 && (
                 <tr>
-                  <td className="px-6 py-6 text-center text-slate-500" colSpan={6}>
+                  <td className="px-5 py-5 text-center text-slate-500" colSpan={6}>
                     Aucun livreur à afficher pour ces filtres.
                   </td>
                 </tr>
@@ -149,7 +160,7 @@ export function LivreursPageContent({
           </table>
         </div>
 
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 text-sm text-slate-600">
+        <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 text-xs text-slate-600">
           <div>
             Affiche {paginated.length} sur {filtered.length} resultat{filtered.length > 1 ? "s" : ""}
           </div>
@@ -158,7 +169,7 @@ export function LivreursPageContent({
               type="button"
               onClick={() => changePage(currentPage - 1)}
               disabled={currentPage === 1}
-              className="rounded-full border border-slate-200 px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
             >
               Prev
             </button>
@@ -169,7 +180,7 @@ export function LivreursPageContent({
               type="button"
               onClick={() => changePage(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="rounded-full border border-slate-200 px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
             >
               Next
             </button>

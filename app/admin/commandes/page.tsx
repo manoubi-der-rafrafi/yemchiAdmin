@@ -63,7 +63,7 @@ export default async function AdminCommandesPage() {
     date_demande: commande.date_demande ?? null,
     statut: commande.statut ?? null,
     prix: commande.prix ?? null,
-    mode_paiement: commande.mode_paiement ?? null,
+    mode_paiement: (commande as any).modePaiement ?? commande.mode_paiement ?? null,
     telDepart: commande.telDepart ?? null,
     telArrivee: commande.telArrivee ?? null,
     zoneDepart: (commande as any).zone_principale_depart ?? null,

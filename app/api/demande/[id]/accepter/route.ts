@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { demandeService } from "@/lib/service/demandeService";
+import { mailService } from "@/lib/service/mailService";
 
 export async function POST(
   _request: Request,
@@ -8,6 +9,9 @@ export async function POST(
   try {
     const { id } = await params;
     const updated = await demandeService.accepter(id);
+    mailService.sendDemandeAcceptee(updated).catch((error) => {
+      console.error("Error while sending accept email", error);
+    });
     return NextResponse.json(updated);
   } catch (error) {
     console.error("Error while accepting demande", error);

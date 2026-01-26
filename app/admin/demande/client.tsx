@@ -15,6 +15,8 @@ type DemandeRow = {
   dateDemande?: string;
   dateReponse?: string | null;
   reponse: DemandeStatus;
+  dossierPhysique?: boolean;
+  causesRefus?: Record<string, string[]>;
   imageCarteIdentiteFace: string;
   imageCarteIdentiteArriere: string;
   imagePermis: string;
@@ -34,6 +36,53 @@ const badgeClass: Record<DemandeStatus, string> = {
   refuser: "border-rose-200 bg-rose-50 text-rose-700",
 };
 
+const refuseReasonsCatalog: Record<string, { id: string; label: string }[]> = {
+  "Carte d'identite": [
+    { id: "id_document_invalide", label: "Document invalide" },
+    { id: "id_image_floue", label: "Image floue, illisible ou coupee" },
+    { id: "id_nom_prenom", label: "Nom/prenom ne correspondent pas aux champs nom/prenom" },
+  ],
+  "Permis de conduire": [
+    { id: "permis_document_invalide", label: "Document invalide" },
+    { id: "permis_image_floue", label: "Image floue, illisible ou coupee" },
+    { id: "permis_categorie_incompatible", label: "Categorie du permis incompatible avec typeVehicule" },
+  ],
+  "Carte grise": [
+    { id: "cg_nom_demandeur", label: "Vehicule non enregistre au nom du demandeur" },
+    { id: "cg_type_diff", label: "Type de vehicule different de typeVehicule" },
+    { id: "cg_image_floue", label: "Image floue, illisible ou coupee" },
+  ],
+  Assurance: [
+    { id: "assurance_non_valide", label: "Assurance non valide" },
+    { id: "assurance_expiree", label: "Assurance expiree" },
+    { id: "assurance_non_couvert", label: "Vehicule non couvert" },
+    { id: "assurance_nom_diff", label: "Nom different de celui du demandeur" },
+    { id: "assurance_attestation_illisible", label: "Attestation illisible" },
+  ],
+};
+
+const buildCausesRefus = (selectedIds: string[]) => {
+  const result: Record<string, string[]> = {};
+  Object.entries(refuseReasonsCatalog).forEach(([category, reasons]) => {
+    const labels = reasons
+      .filter((reason) => selectedIds.includes(reason.id))
+      .map((reason) => reason.label);
+    if (labels.length) result[category] = labels;
+  });
+  return result;
+};
+
+const formatDate = (value?: string | null) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+};
+
 export function DemandePageContent({
   payload,
   demandes,
@@ -44,7 +93,11 @@ export function DemandePageContent({
   const [statusFilter, setStatusFilter] = useState<DemandeStatus>("non traiter");
   const [items, setItems] = useState<DemandeRow[]>(demandes);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [depotLoadingId, setDepotLoadingId] = useState<string | null>(null);
   const [selected, setSelected] = useState<DemandeRow | null>(null);
+  const [refuseReasons, setRefuseReasons] = useState<string[]>([]);
+  const [refuseError, setRefuseError] = useState<string | null>(null);
+  const [showRefuseReasons, setShowRefuseReasons] = useState(false);
   const [searchName, setSearchName] = useState("");
   const [searchNumero, setSearchNumero] = useState("");
 
@@ -66,19 +119,49 @@ export function DemandePageContent({
   );
 
   const updateStatus = async (demande: DemandeRow, status: DemandeStatus) => {
+    if (status === "refuser" && refuseReasons.length === 0) {
+      setRefuseError("Veuillez choisir au moins une cause de refus.");
+      return;
+    }
     try {
       setLoadingId(demande.id);
-      await fetch(`/api/demande/${demande.id}/${status === "accepter" ? "accepter" : "refuser"}`, {
-        method: "POST",
-      });
+      const url = `/api/demande/${demande.id}/${status === "accepter" ? "accepter" : "refuser"}`;
+      const options: RequestInit = { method: "POST" };
+      if (status === "refuser") {
+        options.headers = { "Content-Type": "application/json" };
+        options.body = JSON.stringify({ causesRefus: buildCausesRefus(refuseReasons) });
+      }
+      await fetch(url, options);
       setItems((prev) =>
         prev.map((d) => (d.id === demande.id ? { ...d, reponse: status, dateReponse: new Date().toISOString() } : d))
       );
       setSelected(null);
+      setRefuseReasons([]);
+      setRefuseError(null);
+      setShowRefuseReasons(false);
     } catch (error) {
       console.error("Erreur lors de la mise a jour de la demande", error);
     } finally {
       setLoadingId(null);
+    }
+  };
+
+  const handleDepotPhysique = async (demande: DemandeRow) => {
+    try {
+      setDepotLoadingId(demande.id);
+      const response = await fetch(`/api/demande/${demande.id}/deposer`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body?.message || "Erreur lors du depot physique");
+      }
+      setItems((prev) => prev.filter((d) => d.id !== demande.id));
+      setSelected(null);
+    } catch (error) {
+      console.error("Erreur lors du depot physique", error);
+    } finally {
+      setDepotLoadingId(null);
     }
   };
 
@@ -134,7 +217,6 @@ export function DemandePageContent({
                 <th className="px-6 py-3 font-semibold">Numero</th>
                 <th className="px-6 py-3 font-semibold">Type vehicule</th>
                 <th className="px-6 py-3 font-semibold">Date</th>
-                <th className="px-6 py-3 font-semibold">Statut</th>
                 <th className="px-6 py-3 font-semibold text-right">Actions</th>
               </tr>
             </thead>
@@ -146,35 +228,10 @@ export function DemandePageContent({
                   </td>
                   <td className="px-6 py-4 text-slate-700">{demande.numero}</td>
                   <td className="px-6 py-4 text-slate-700">{demande.typeVehicule}</td>
-                  <td className="px-6 py-4 text-slate-700">{demande.dateDemande ?? "-"}</td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${badgeClass[demande.reponse]}`}>
-                      <span className="h-2 w-2 rounded-full bg-current opacity-70" />
-                      {demande.reponse}
-                    </span>
-                  </td>
+                  <td className="px-6 py-4 text-slate-700">{formatDate(demande.dateDemande)}</td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col items-end gap-2">
-                      {statusFilter === "non traiter" ? (
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => updateStatus(demande, "accepter")}
-                            className="rounded-full bg-emerald-500/90 px-3 py-1.5 text-white text-xs font-semibold hover:bg-emerald-600 transition-colors disabled:opacity-60"
-                            disabled={loadingId === demande.id}
-                          >
-                            {loadingId === demande.id ? "..." : "Accepter"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateStatus(demande, "refuser")}
-                            className="rounded-full bg-rose-500/90 px-3 py-1.5 text-white text-xs font-semibold hover:bg-rose-600 transition-colors disabled:opacity-60"
-                            disabled={loadingId === demande.id}
-                          >
-                            {loadingId === demande.id ? "..." : "Refuser"}
-                          </button>
-                        </div>
-                      ) : (
+                      {statusFilter !== "non traiter" && (
                         <div className="flex justify-end gap-2">
                           <button
                             type="button"
@@ -184,17 +241,22 @@ export function DemandePageContent({
                           </button>
                           <button
                             type="button"
-                            onClick={() => setSelected(demande)}
-                            className="rounded-full bg-sky-500/90 px-3 py-1.5 text-white text-xs font-semibold hover:bg-sky-600 transition-colors"
-                          >
-                            Documents
-                          </button>
+                          onClick={() => setSelected(demande)}
+                          className="rounded-full bg-sky-500/90 px-3 py-1.5 text-white text-xs font-semibold hover:bg-sky-600 transition-colors"
+                        >
+                          Documents
+                        </button>
                         </div>
                       )}
                       {statusFilter === "non traiter" && (
                         <button
                           type="button"
-                          onClick={() => setSelected(demande)}
+                          onClick={() => {
+                            setSelected(demande);
+                            setRefuseReasons([]);
+                            setRefuseError(null);
+                            setShowRefuseReasons(false);
+                          }}
                           className="rounded-full bg-sky-500/90 px-3 py-1.5 text-white text-xs font-semibold hover:bg-sky-600 transition-colors"
                         >
                           Documents
@@ -256,6 +318,110 @@ export function DemandePageContent({
                     </div>
                   </div>
                 ))}
+                {selected.reponse === "non traiter" && showRefuseReasons && (
+                  <div className="sm:col-span-2 space-y-4 pt-2">
+                    <div className="rounded-xl border border-slate-100 bg-white p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Causes du refus
+                      </p>
+                      <div className="mt-3 grid gap-4 sm:grid-cols-2 text-sm text-slate-700">
+                        {Object.entries(refuseReasonsCatalog).map(([category, reasons]) => (
+                          <div key={category} className="space-y-2">
+                            <p className="font-semibold text-slate-900">{category}</p>
+                            {reasons.map((reason) => (
+                              <label key={reason.id} className="flex items-start gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={refuseReasons.includes(reason.id)}
+                                  onChange={(e) =>
+                                    setRefuseReasons((prev) =>
+                                      e.target.checked
+                                        ? [...prev, reason.id]
+                                        : prev.filter((item) => item !== reason.id)
+                                    )
+                                  }
+                                />
+                                <span>{reason.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                      {refuseError && (
+                        <p className="mt-3 text-xs font-semibold text-rose-600">{refuseError}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {selected.reponse === "refuser" && (
+                  <div className="sm:col-span-2 space-y-3 pt-2">
+                    <div className="rounded-xl border border-slate-100 bg-white p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Causes du refus
+                      </p>
+                      {selected.causesRefus && Object.keys(selected.causesRefus).length > 0 ? (
+                        <div className="mt-3 grid gap-4 sm:grid-cols-2 text-sm text-slate-700">
+                          {Object.entries(selected.causesRefus).map(([category, reasons]) => (
+                            <div key={category} className="space-y-1">
+                              <p className="font-semibold text-slate-900">{category}</p>
+                              <ul className="list-disc pl-5 space-y-1">
+                                {reasons.map((reason, index) => (
+                                  <li key={`${category}-${index}`}>{reason}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-sm text-slate-500">Aucune cause enregistree.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {selected.reponse === "non traiter" && (
+                  <div className="sm:col-span-2 flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowRefuseReasons(false);
+                        setRefuseReasons([]);
+                        setRefuseError(null);
+                        updateStatus(selected, "accepter");
+                      }}
+                      className="rounded-full bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 transition-colors disabled:opacity-60"
+                      disabled={loadingId === selected.id}
+                    >
+                      {loadingId === selected.id ? "..." : "Accepter"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!showRefuseReasons) {
+                          setShowRefuseReasons(true);
+                          setRefuseError(null);
+                          return;
+                        }
+                        updateStatus(selected, "refuser");
+                      }}
+                      className="rounded-full bg-rose-500/90 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-600 transition-colors disabled:opacity-60"
+                      disabled={loadingId === selected.id}
+                    >
+                      {loadingId === selected.id ? "..." : "Refuser"}
+                    </button>
+                  </div>
+                )}
+                {selected.reponse === "accepter" && (
+                  <div className="sm:col-span-2 flex justify-end pt-2">
+                    <button
+                      type="button"
+                      onClick={() => handleDepotPhysique(selected)}
+                      className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                      disabled={depotLoadingId === selected.id}
+                    >
+                      {depotLoadingId === selected.id ? "..." : "Dossier physique depose"}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

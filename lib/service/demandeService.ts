@@ -15,12 +15,21 @@ export const demandeService = {
     return demandeRepository.updateById(id, data);
   },
   accepter(id: string) {
-    return demandeRepository.updateById(id, { reponse: ReponseDemande.ACCEPTER });
+    return demandeRepository.updateById(id, {
+      reponse: ReponseDemande.ACCEPTER,
+      dossierPhysique: false,
+    });
   },
-  refuser(id: string) {
-    return demandeRepository.updateById(id, { reponse: ReponseDemande.REFUSER });
+  refuser(id: string, causesRefus?: Record<string, string[]>) {
+    return demandeRepository.updateById(id, {
+      reponse: ReponseDemande.REFUSER,
+      causesRefus: causesRefus ?? {},
+    });
   },
   remove(id: string) {
     return demandeRepository.deleteById(id);
+  },
+  markDossierPhysique(id: string, value: boolean) {
+    return demandeRepository.updateById(id, { dossierPhysique: value });
   },
 };
