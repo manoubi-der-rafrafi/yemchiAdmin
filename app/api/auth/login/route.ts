@@ -3,6 +3,9 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { utilisateurService } from "@/lib/service/utilisateurService";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 type JwtPayload = {
   sub: string;
   email: string;
