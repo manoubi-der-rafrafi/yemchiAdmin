@@ -32,8 +32,10 @@ const formatDate = (value?: string | null) => {
 };
 
 const normalizeCausesRefus = (causes?: Demande["causesRefus"]) => {
-  if (!causes) return {};
-  if (causes instanceof Map) return Object.fromEntries(causes.entries());
+  if (!causes) return {} as Record<string, string[]>;
+  if (causes instanceof Map) {
+    return Object.fromEntries(causes.entries()) as Record<string, string[]>;
+  }
   return causes;
 };
 
