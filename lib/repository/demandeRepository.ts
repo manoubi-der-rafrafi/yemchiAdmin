@@ -1,10 +1,9 @@
+import { type QueryFilter } from "mongoose";
 import { connectDB } from "../config/db";
 import DemandeModel, { type Demande } from "../models/demande";
 
 export const demandeRepository = {
-  async findAll(
-    filter: Parameters<(typeof DemandeModel)["find"]>[0] = {}
-  ) {
+  async findAll(filter: QueryFilter<Demande> = {}) {
     await connectDB();
     return DemandeModel.find(filter).exec();
   },

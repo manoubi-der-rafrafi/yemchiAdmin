@@ -1,10 +1,9 @@
+import { type QueryFilter } from "mongoose";
 import { connectDB } from "../config/db";
 import AmiModel, { type Utilisateur as Ami } from "../models/ami";
 
 export const amiRepository = {
-  async findAll(
-    filter: Parameters<(typeof AmiModel)["find"]>[0] = {}
-  ) {
+  async findAll(filter: QueryFilter<Ami> = {}) {
     await connectDB();
     return AmiModel.find(filter).exec();
   },

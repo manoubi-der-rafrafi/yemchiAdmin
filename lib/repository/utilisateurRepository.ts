@@ -1,3 +1,4 @@
+import { type QueryFilter } from "mongoose";
 import { connectDB } from "../config/db";
 import UtilisateurModel, { type Utilisateur } from "../models/utilisateur";
 
@@ -5,9 +6,7 @@ const escapeRegex = (value: string) =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export const utilisateurRepository = {
-  async findAll(
-    filter: Parameters<(typeof UtilisateurModel)["find"]>[0] = {}
-  ) {
+  async findAll(filter: QueryFilter<Utilisateur> = {}) {
     await connectDB();
     return UtilisateurModel.find(filter).exec();
   },

@@ -1,8 +1,9 @@
+import { type QueryFilter } from "mongoose";
 import { contactRepository } from "../repository/contactRepository";
 import { type Contact } from "../models/contact";
 
 export const contactService = {
-  list(filter?: Parameters<(typeof contactRepository)["findAll"]>[0]) {
+  list(filter?: QueryFilter<Contact>) {
     return contactRepository.findAll(filter);
   },
   get(id: string) {

@@ -1,8 +1,9 @@
+import { type QueryFilter } from "mongoose";
 import { commandeRepository } from "../repository/commandeRepository";
 import { type Commande } from "../models/commande";
 
 export const commandeService = {
-  list(filter?: Parameters<(typeof commandeRepository)["findAll"]>[0]) {
+  list(filter?: QueryFilter<Commande>) {
     const excludeEnCours = { statut: { $not: /^en[\s_]*cours$/i } } as const;
     const query = filter ? ({ $and: [excludeEnCours, filter] } as any) : excludeEnCours;
     return commandeRepository.findAll(query);

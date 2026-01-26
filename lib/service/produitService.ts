@@ -1,8 +1,9 @@
+import { type QueryFilter } from "mongoose";
 import { produitRepository } from "../repository/produitRepository";
 import { type Produit } from "../models/produit";
 
 export const produitService = {
-  list(filter?: Parameters<(typeof produitRepository)["findAll"]>[0]) {
+  list(filter?: QueryFilter<Produit>) {
     return produitRepository.findAll(filter);
   },
   get(id: string) {

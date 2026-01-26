@@ -1,6 +1,6 @@
+import { type QueryFilter, Types } from "mongoose";
 import { connectDB } from "../config/db";
 import CommandeModel, { type Commande } from "../models/commande";
-import { Types } from "mongoose";
 import "../models/utilisateur"; // ensure Utilisateur schema is registered for populate
 
 export const commandeRepository = {
@@ -12,9 +12,7 @@ export const commandeRepository = {
     }
     return matchTransporteur;
   },
-  async findAll(
-    filter: Parameters<(typeof CommandeModel)["find"]>[0] = {}
-  ) {
+  async findAll(filter: QueryFilter<Commande> = {}) {
     await connectDB();
     const excludeEnCours = { statut: { $not: /^en[\s_]*cours$/i } } as const;
     const query = filter ? ({ $and: [excludeEnCours, filter] } as any) : excludeEnCours;

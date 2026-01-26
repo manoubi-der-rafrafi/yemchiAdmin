@@ -1,8 +1,9 @@
+import { type QueryFilter } from "mongoose";
 import { amiRepository } from "../repository/amiRepository";
 import { type Utilisateur as Ami } from "../models/ami";
 
 export const amiService = {
-  list(filter?: Parameters<(typeof amiRepository)["findAll"]>[0]) {
+  list(filter?: QueryFilter<Ami>) {
     return amiRepository.findAll(filter);
   },
   get(id: string) {

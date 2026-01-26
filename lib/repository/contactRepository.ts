@@ -1,10 +1,9 @@
+import { type QueryFilter } from "mongoose";
 import { connectDB } from "../config/db";
 import ContactModel, { type Contact } from "../models/contact";
 
 export const contactRepository = {
-  async findAll(
-    filter: Parameters<(typeof ContactModel)["find"]>[0] = {}
-  ) {
+  async findAll(filter: QueryFilter<Contact> = {}) {
     await connectDB();
     return ContactModel.find(filter).exec();
   },
