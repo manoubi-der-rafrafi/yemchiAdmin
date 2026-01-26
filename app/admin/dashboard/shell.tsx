@@ -89,6 +89,7 @@ const navItems: NavItem[] = [
     section: "Gestion financière",
   },
   { label: "Gerer messages", href: "/admin/messages", icon: icons.messages, section: "Communication" },
+  { label: "Contacts", href: "/admin/messages", icon: icons.messages, section: "Communication" },
   { label: "Setting", href: "/admin/settings", icon: icons.settings, section: "Paramètres" },
 ];
 
@@ -131,10 +132,10 @@ export function DashboardShell({
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50 to-orange-50 text-slate-900 flex">
       <aside
-        className={`group relative ${collapsed ? "w-24" : "w-80"} transition-all duration-300 bg-white/70 backdrop-blur-2xl border-r border-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.6),inset_0_0_12px_rgba(255,255,255,0.45),0_10px_50px_rgba(0,0,0,0.08)]`}
+        className={`group relative ${collapsed ? "w-24" : "w-80"} transition-all duration-300 bg-white/70 backdrop-blur-2xl border-r border-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.6),inset_0_0_12px_rgba(255,255,255,0.45),0_10px_50px_rgba(0,0,0,0.08)] sticky top-0 h-screen overflow-y-auto`}
       >
         <div className="absolute inset-0 bg-gradient-to-b from-sky-100/40 via-white/40 to-orange-50/50 pointer-events-none rounded-r-3xl" />
-        <div className="relative flex flex-col min-h-screen">
+        <div className="relative flex flex-col min-h-full">
           <div className="flex items-center gap-3 px-5 py-5 border-b border-white/60">
             <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-white/80 shadow-lg bg-white/90 p-1.5 shadow-[0_8px_22px_rgba(14,165,233,0.18)]">
               <Image
@@ -284,3 +285,4 @@ export function DashboardShell({
     </div>
   );
 }
+
