@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { factureService } from "@/lib/service/factureService";
-import { FactureType } from "@/lib/models/facture";
+import { FactureStatus, FactureType } from "@/lib/models/facture";
 
 const getEnv = (key: string) => process.env[key] ?? "";
 
@@ -23,9 +23,21 @@ export async function POST(request: Request) {
     const factureType = Object.values(FactureType).includes(type as FactureType)
       ? (type as FactureType)
       : undefined;
+    const confirmer = String(form.get("confirmer") ?? "");
+    const confirmerUpper = confirmer.toUpperCase();
+    const factureStatus = Object.values(FactureStatus).includes(confirmerUpper as FactureStatus)
+      ? (confirmerUpper as FactureStatus)
+      : undefined;
     const file = form.get("image");
 
-    if (!Number.isFinite(montant) || !id_livreur || !dateTimle || !factureType || !(file instanceof File)) {
+    if (
+      !Number.isFinite(montant) ||
+      !id_livreur ||
+      !dateTimle ||
+      !factureType ||
+      !factureStatus ||
+      !(file instanceof File)
+    ) {
       return NextResponse.json({ message: "Champs invalides." }, { status: 400 });
     }
 
@@ -81,6 +93,7 @@ export async function POST(request: Request) {
       dateTimle,
       type: factureType,
       image: imageUrl,
+      confirmer: factureStatus,
     });
     return NextResponse.json(created, { status: 201 });
   } catch (error) {

@@ -7,9 +7,17 @@ type FactureModalProps = {
   label: string;
   variant: "encaissement" | "decaissement";
   livreurId: string;
+  onCreated?: (facture: {
+    _id?: unknown;
+    dateTimle: string;
+    montant: number;
+    type: string;
+    image?: string | null;
+    confirmer?: string | null;
+  }) => void;
 };
 
-export function FactureModal({ label, variant, livreurId }: FactureModalProps) {
+export function FactureModal({ label, variant, livreurId, onCreated }: FactureModalProps) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [montant, setMontant] = useState("");
@@ -65,16 +73,17 @@ export function FactureModal({ label, variant, livreurId }: FactureModalProps) {
                 setError(null);
                 setIsSaving(true);
                 try {
+                  const nowIso = new Date().toISOString();
+                  const factureType =
+                    variant === "encaissement"
+                      ? "LIVREUR_VERSE_ENTREPRISE"
+                      : "ENTREPRISE_VERSE_LIVREUR";
                   const formData = new FormData();
                   formData.append("montant", String(Number(montant)));
                   formData.append("id_livreur", livreurId);
-                  formData.append("dateTimle", new Date().toISOString());
-                  formData.append(
-                    "type",
-                    variant === "encaissement"
-                      ? "LIVREUR_VERSE_ENTREPRISE"
-                      : "ENTREPRISE_VERSE_LIVREUR"
-                  );
+                  formData.append("dateTimle", nowIso);
+                  formData.append("type", factureType);
+                  formData.append("confirmer", "ACCEPTER");
                   formData.append("image", imageFile);
                   const response = await fetch("/api/facture", {
                     method: "POST",
@@ -83,6 +92,20 @@ export function FactureModal({ label, variant, livreurId }: FactureModalProps) {
                   if (!response.ok) {
                     throw new Error("Erreur lors de l'enregistrement.");
                   }
+                  let created: any = null;
+                  try {
+                    created = await response.json();
+                  } catch {
+                    created = null;
+                  }
+                  onCreated?.({
+                    _id: created?._id,
+                    dateTimle: created?.dateTimle ?? nowIso,
+                    montant: Number(montant),
+                    type: created?.type ?? factureType,
+                    image: created?.image ?? null,
+                    confirmer: created?.confirmer ?? "ACCEPTER",
+                  });
                   setMontant("");
                   setImageFile(null);
                   setOpen(false);

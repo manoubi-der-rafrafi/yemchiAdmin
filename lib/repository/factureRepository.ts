@@ -1,4 +1,4 @@
-import FactureModel, { FactureType, type Facture } from "../models/facture";
+import FactureModel, { FactureStatus, FactureType, type Facture } from "../models/facture";
 import { connectDB } from "../config/db";
 
 export const factureRepository = {
@@ -30,7 +30,7 @@ export const factureRepository = {
   async sumMontantByLivreurIdAndType(livreurId: string, type: FactureType) {
     await connectDB();
     const result = await FactureModel.aggregate([
-      { $match: { id_livreur: livreurId, type } },
+      { $match: { id_livreur: livreurId, type, confirmer: FactureStatus.ACCEPTER } },
       { $group: { _id: null, total: { $sum: { $ifNull: ["$montant", 0] } } } },
     ]);
     return result[0]?.total ?? 0;

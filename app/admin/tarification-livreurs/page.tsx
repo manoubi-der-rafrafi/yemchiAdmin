@@ -85,6 +85,7 @@ export default async function AdminTarificationLivreursPage() {
       montant: facture.montant ?? null,
       type: facture.type ?? null,
       image: facture.image ?? null,
+      confirmer: facture.confirmer ?? null,
       livreur: livreur
         ? {
             nom: livreur.nom ?? null,

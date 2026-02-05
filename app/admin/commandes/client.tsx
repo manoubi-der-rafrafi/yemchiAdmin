@@ -53,7 +53,18 @@ export function CommandePageContent({
   }, [commandes]);
 
   const statutChoices = useMemo(() => {
-    const base = ["EN_ATTENTE", "ENVOYEE", "EN_COURS", "LIVREE", "ANNULEE"];
+    const base = [
+      "EN_ATTENTE",
+      "ENVOYEE",
+      "EN_COURS",
+      "LIVREE",
+      "ANNULEE",
+      "en_appelle",
+      "Appelle client 1",
+      "Appelle client 2",
+      "Non repondre client 1",
+      "Non repondre client 2",
+    ];
     const set = new Set<string>(base);
     items.forEach((c) => {
       if (c.statut) set.add(c.statut);

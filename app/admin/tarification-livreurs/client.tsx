@@ -22,6 +22,7 @@ type FactureRow = {
   dateTimle?: string | null;
   montant?: number | string | null;
   type?: string | null;
+  confirmer?: string | null;
   livreur?: {
     nom?: string | null;
     prenom?: string | null;
@@ -58,6 +59,18 @@ export function TarificationLivreursPageContent({
       return Math.abs(livreur.valPaye) <= epsilon;
     });
   }, [identifiantQuery, livreurs, soldeFilter, epsilon]);
+  const acceptedFactures = useMemo(
+    () => factures.filter((facture) => (facture.confirmer ?? "").toUpperCase() === "ACCEPTER"),
+    [factures]
+  );
+  const pendingFactures = useMemo(
+    () =>
+      factures.filter((facture) => {
+        const status = (facture.confirmer ?? "").toUpperCase();
+        return status !== "ACCEPTER" && status !== "REFUSER";
+      }),
+    [factures]
+  );
 
   return (
     <DashboardShell payload={payload} title="Gestion financière" subtitle="Tarification livreurs">
@@ -175,7 +188,17 @@ export function TarificationLivreursPageContent({
         </div>
       </section>
 
-        <FactureHistoryTable factures={factures} />
+        <FactureHistoryTable
+          factures={acceptedFactures}
+          title="Factures acceptees"
+          subtitle="Factures confirmees (confirmer = ACCEPTER)."
+        />
+        <FactureHistoryTable
+          factures={pendingFactures}
+          title="Factures non traitees"
+          subtitle="Factures en attente de traitement."
+          allowDecision
+        />
       </div>
     </DashboardShell>
   );

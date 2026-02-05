@@ -9,6 +9,7 @@ type FactureRow = {
   montant?: number | string | null;
   type?: string | null;
   image?: string | null;
+  confirmer?: string | null;
   livreur?: {
     nom?: string | null;
     prenom?: string | null;
@@ -33,19 +34,41 @@ const formatDate = (value?: string | null) => {
 };
 
 type TypeFilter = "tous" | "verse_livreur" | "verse_entreprise";
+type DecisionStep = "initial" | "accept";
 
-export function FactureHistoryTable({ factures }: { factures: FactureRow[] }) {
+export function FactureHistoryTable({
+  factures,
+  title,
+  subtitle,
+  allowDecision = false,
+}: {
+  factures: FactureRow[];
+  title?: string;
+  subtitle?: string;
+  allowDecision?: boolean;
+}) {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("tous");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [page, setPage] = useState(1);
   const [detailImage, setDetailImage] = useState<string | null>(null);
+  const [detailFacture, setDetailFacture] = useState<FactureRow | null>(null);
+  const [decisionStep, setDecisionStep] = useState<DecisionStep>("initial");
+  const [montant, setMontant] = useState<string>("");
+  const [dateValue, setDateValue] = useState<string>("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [rows, setRows] = useState<FactureRow[]>(factures);
   const pageSize = 8;
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    setRows(factures);
+  }, [factures]);
 
   const toDateKey = (value?: string | null) => {
     if (!value) return null;
@@ -66,7 +89,7 @@ export function FactureHistoryTable({ factures }: { factures: FactureRow[] }) {
 
   const filtered = useMemo(() => {
     const range = normalizeRange();
-    return factures.filter((facture) => {
+    return rows.filter((facture) => {
       const matchType =
         typeFilter === "tous"
           ? true
@@ -89,12 +112,72 @@ export function FactureHistoryTable({ factures }: { factures: FactureRow[] }) {
     setTypeFilter(value);
     setPage(1);
   };
+  const heading = title ?? "Historique des factures";
+  const description = subtitle ?? "Versements par livreur avec filtre par type et date.";
+
+  const openDetail = (facture: FactureRow) => {
+    setDetailFacture(facture);
+    setDecisionStep("initial");
+    setError(null);
+    const initialMontant =
+      typeof facture.montant === "number"
+        ? String(facture.montant)
+        : typeof facture.montant === "string"
+          ? facture.montant
+          : "";
+    setMontant(initialMontant);
+    setDateValue(toDateKey(facture.dateTimle) ?? "");
+  };
+
+  const closeDetail = () => {
+    setDetailFacture(null);
+    setDecisionStep("initial");
+    setError(null);
+    setIsSaving(false);
+  };
+
+  const handleDecision = async (status: "ACCEPTER" | "REFUSER") => {
+    if (!detailFacture?._id) return;
+    if (status === "ACCEPTER") {
+      if (!montant || !Number.isFinite(Number(montant))) {
+        setError("Veuillez saisir un montant valide.");
+        return;
+      }
+      if (!dateValue) {
+        setError("Veuillez saisir une date valide.");
+        return;
+      }
+    }
+    setError(null);
+    setIsSaving(true);
+    try {
+      const body: Record<string, unknown> = { confirmer: status };
+      if (status === "ACCEPTER") {
+        body.montant = Number(montant);
+        body.dateTimle = new Date(dateValue).toISOString();
+      }
+      const response = await fetch(`/api/facture/${detailFacture._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        throw new Error("Erreur lors de la mise a jour.");
+      }
+      setRows((prev) => prev.filter((facture) => String(facture._id) !== String(detailFacture._id)));
+      closeDetail();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la mise a jour.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <section className="rounded-2xl border border-white/70 bg-white/80 backdrop-blur shadow-sm shadow-[0_18px_60px_rgba(14,165,233,0.08)]">
       <div className="px-4 pt-4">
-        <h3 className="text-base font-semibold text-slate-900">Historique des factures</h3>
-        <p className="mt-1 text-xs text-slate-500">Versements par livreur avec filtre par type et date.</p>
+        <h3 className="text-base font-semibold text-slate-900">{heading}</h3>
+        <p className="mt-1 text-xs text-slate-500">{description}</p>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
         <div className="flex flex-wrap items-center gap-2">
@@ -159,11 +242,10 @@ export function FactureHistoryTable({ factures }: { factures: FactureRow[] }) {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-[12px]" style={{ minWidth: 860 }}>
+        <table className="w-full text-[12px]" style={{ minWidth: 640 }}>
           <thead className="border-t border-b border-slate-100 bg-slate-50/60 text-left text-slate-500">
             <tr>
               <th className="px-4 py-2 font-semibold">Livreur</th>
-              <th className="px-4 py-2 font-semibold text-right">Montant</th>
               <th className="px-4 py-2 font-semibold text-right">Date</th>
               <th className="px-4 py-2 font-semibold text-right">Detail</th>
             </tr>
@@ -192,13 +274,14 @@ export function FactureHistoryTable({ factures }: { factures: FactureRow[] }) {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-2.5 text-right text-slate-700">{formatMoney(montant)} DT</td>
                   <td className="px-4 py-2.5 text-right text-slate-700">{formatDate(facture.dateTimle)}</td>
                   <td className="px-4 py-2.5 text-right">
                     <button
                       type="button"
                       disabled={!facture.image}
-                      onClick={() => setDetailImage(facture.image ?? null)}
+                      onClick={() =>
+                        allowDecision ? openDetail(facture) : setDetailImage(facture.image ?? null)
+                      }
                       className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
                         facture.image
                           ? "border-slate-200 text-slate-700 hover:bg-slate-50"
@@ -250,6 +333,7 @@ export function FactureHistoryTable({ factures }: { factures: FactureRow[] }) {
       </div>
 
       {mounted &&
+        !allowDecision &&
         detailImage &&
         createPortal(
           <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/70 p-6 backdrop-blur-sm">
@@ -265,6 +349,106 @@ export function FactureHistoryTable({ factures }: { factures: FactureRow[] }) {
               alt="Facture"
               className="max-h-[90vh] w-auto max-w-[90vw] object-contain"
             />
+          </div>,
+          document.body
+        )}
+
+      {mounted &&
+        allowDecision &&
+        detailFacture?.image &&
+        createPortal(
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/70 p-6 backdrop-blur-sm">
+            <div className="relative w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-xl max-h-[85vh] flex flex-col">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Facture</p>
+                  <p className="text-sm font-semibold text-slate-900">Detail de la facture</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeDetail}
+                  className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                >
+                  Fermer
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-5 py-5">
+                <div className="grid gap-4 md:grid-cols-[1.2fr_1fr]">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                    <img
+                      src={detailFacture.image}
+                      alt="Facture"
+                      className="max-h-[70vh] w-full object-contain"
+                    />
+                  </div>
+                  <div className="space-y-4">
+                    {decisionStep === "initial" && (
+                      <p className="text-sm text-slate-600">Choisissez une action pour traiter la facture.</p>
+                    )}
+                    {decisionStep === "accept" && (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs font-semibold text-slate-600">Montant</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={montant}
+                            onChange={(event) => setMontant(event.target.value)}
+                            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
+                            placeholder="0.00"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-slate-600">Date</label>
+                          <input
+                            type="date"
+                            value={dateValue}
+                            onChange={(event) => setDateValue(event.target.value)}
+                            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
+                            required
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {error && <p className="text-xs text-rose-600">{error}</p>}
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-slate-100 bg-white/95 px-5 py-4">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {decisionStep === "initial" && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleDecision("REFUSER")}
+                        disabled={isSaving}
+                        className="w-full sm:w-auto rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                      >
+                        Refuser
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDecisionStep("accept")}
+                        className="w-full sm:w-auto rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                      >
+                        Accepter
+                      </button>
+                    </>
+                  )}
+                  {decisionStep === "accept" && (
+                    <button
+                      type="button"
+                      onClick={() => handleDecision("ACCEPTER")}
+                      disabled={isSaving}
+                      className="w-full sm:w-auto rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+                    >
+                      {isSaving ? "Confirmation..." : "Confirmer"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>,
           document.body
         )}

@@ -50,9 +50,23 @@ export const commandeRepository = {
     await connectDB();
     const matchTransporteur = this.buildTransporteurMatch(livreurId);
     const result = await CommandeModel.aggregate([
-      { $match: { statut: { $regex: /^livree$/i } } },
+      { $match: { statut: { $regex: /^livr[ée]e$/i } } },
       { $match: matchTransporteur },
-      { $group: { _id: null, total: { $sum: { $ifNull: ["$prix", 0] } } } },
+      {
+        $group: {
+          _id: null,
+          total: {
+            $sum: {
+              $convert: {
+                input: "$prix",
+                to: "double",
+                onError: 0,
+                onNull: 0,
+              },
+            },
+          },
+        },
+      },
     ]);
     return result[0]?.total ?? 0;
   },
@@ -63,12 +77,29 @@ export const commandeRepository = {
     const result = await CommandeModel.aggregate([
       {
         $match: {
-          statut: { $regex: /^livree$/i },
-          modePaiement: { $regex: /^enligne$/i },
+          statut: { $regex: /^livr[ée]e$/i },
+          $or: [
+            { modePaiement: { $regex: /^en[\s_]*ligne$/i } },
+            { mode_paiement: { $regex: /^en[\s_]*ligne$/i } },
+          ],
         },
       },
       { $match: matchTransporteur },
-      { $group: { _id: null, total: { $sum: { $ifNull: ["$prix", 0] } } } },
+      {
+        $group: {
+          _id: null,
+          total: {
+            $sum: {
+              $convert: {
+                input: "$prix",
+                to: "double",
+                onError: 0,
+                onNull: 0,
+              },
+            },
+          },
+        },
+      },
     ]);
     return result[0]?.total ?? 0;
   },
@@ -79,12 +110,29 @@ export const commandeRepository = {
     const result = await CommandeModel.aggregate([
       {
         $match: {
-          statut: { $regex: /^livree$/i },
-          modePaiement: { $not: /^enligne$/i },
+          statut: { $regex: /^livr[ée]e$/i },
+          $nor: [
+            { modePaiement: { $regex: /^en[\s_]*ligne$/i } },
+            { mode_paiement: { $regex: /^en[\s_]*ligne$/i } },
+          ],
         },
       },
       { $match: matchTransporteur },
-      { $group: { _id: null, total: { $sum: { $ifNull: ["$prix", 0] } } } },
+      {
+        $group: {
+          _id: null,
+          total: {
+            $sum: {
+              $convert: {
+                input: "$prix",
+                to: "double",
+                onError: 0,
+                onNull: 0,
+              },
+            },
+          },
+        },
+      },
     ]);
     return result[0]?.total ?? 0;
   },
@@ -93,7 +141,7 @@ export const commandeRepository = {
     await connectDB();
     const matchTransporteur = this.buildTransporteurMatch(livreurId);
     return CommandeModel.aggregate([
-      { $match: { statut: { $regex: /^livree$/i } } },
+      { $match: { statut: { $regex: /^livr[ée]e$/i } } },
       { $match: matchTransporteur },
       { $sort: { dateDemande: -1, date_demande: -1, createdAt: -1 } },
     ]);
