@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { JwtPayload } from "@/lib/utils/jwt";
 import { DashboardShell } from "../dashboard/shell";
+import { COMMANDE_STATUTS } from "@/lib/constants/commande-statut";
 
 type CommandeRow = {
   id: string;
@@ -52,25 +53,7 @@ export function CommandePageContent({
     setItems(commandes);
   }, [commandes]);
 
-  const statutChoices = useMemo(() => {
-    const base = [
-      "EN_ATTENTE",
-      "ENVOYEE",
-      "EN_COURS",
-      "LIVREE",
-      "ANNULEE",
-      "en_appelle",
-      "Appelle client 1",
-      "Appelle client 2",
-      "Non repondre client 1",
-      "Non repondre client 2",
-    ];
-    const set = new Set<string>(base);
-    items.forEach((c) => {
-      if (c.statut) set.add(c.statut);
-    });
-    return Array.from(set);
-  }, [items]);
+  const statutChoices = useMemo(() => Array.from(COMMANDE_STATUTS), []);
 
   const statusOptions = useMemo(() => {
     const unique = new Set<string>();

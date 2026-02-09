@@ -57,8 +57,10 @@ export interface Commande extends Document {
   zone_principale_depart: Zone;
   zone_principale_arrivee: Zone;
 
+  qrCodeDepart?: string | null;
   qrCodeDepartScanne?: boolean;
   dateScanDepart?: string | null;
+  qrCodeArrivee?: string | null;
   qrCodeReceptionScanne?: boolean;
   dateScanReception?: string | null;
 
@@ -153,9 +155,11 @@ const commandeSchema = new Schema<Commande>(
       required: true,
     },
 
+    qrCodeDepart: { type: String, default: null },
     qrCodeDepartScanne: { type: Boolean, default: false },
     dateScanDepart: { type: String, default: null },
 
+    qrCodeArrivee: { type: String, default: null },
     qrCodeReceptionScanne: { type: Boolean, default: false },
     dateScanReception: { type: String, default: null },
 
