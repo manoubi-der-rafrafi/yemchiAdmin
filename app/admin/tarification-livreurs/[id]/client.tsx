@@ -6,7 +6,7 @@ import type { JwtPayload } from "@/lib/utils/jwt";
 import { DashboardShell } from "../../dashboard/shell";
 import { CommandesHistoryTable } from "./history-client";
 import { FactureModal } from "./facture-modal";
-import { FactureHistoryTable } from "./facture-history-client";
+import { FactureHistoryTable, type FactureRow } from "./facture-history-client";
 
 type LivreurPlain = {
   nom?: string | null;
@@ -28,15 +28,6 @@ type CommandeRow = {
   sousZoneDepart?: string | null;
   zonePrincipaleArrivee?: string | null;
   sousZoneArrivee?: string | null;
-};
-
-type FactureRow = {
-  _id?: unknown;
-  dateTimle?: string | null;
-  montant?: number | string | null;
-  type?: string | null;
-  image?: string | null;
-  confirmer?: string | null;
 };
 
 const formatMoney = (value: number) =>
@@ -101,7 +92,7 @@ export function TarificationLivreurDetailClient({
     montant: number;
     type: string;
     image?: string | null;
-    confirmer?: string | null;
+    confirmer?: FactureRow["confirmer"];
   }) => {
     setRows((prev) => [{ ...facture }, ...prev]);
     if (facture.type === "ENTREPRISE_VERSE_LIVREUR") {

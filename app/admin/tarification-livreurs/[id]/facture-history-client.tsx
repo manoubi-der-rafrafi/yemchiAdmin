@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
-type FactureRow = {
+export type FactureRow = {
   _id?: unknown;
   dateTimle?: string | null;
   montant?: number | string | null;

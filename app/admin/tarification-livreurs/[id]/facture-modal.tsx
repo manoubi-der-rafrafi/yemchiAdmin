@@ -2,19 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import type { FactureRow } from "./facture-history-client";
 
 type FactureModalProps = {
   label: string;
   variant: "encaissement" | "decaissement";
   livreurId: string;
-  onCreated?: (facture: {
-    _id?: unknown;
-    dateTimle: string;
-    montant: number;
-    type: string;
-    image?: string | null;
-    confirmer?: string | null;
-  }) => void;
+  onCreated?: (facture: FactureRow & { dateTimle: string; montant: number; type: string }) => void;
 };
 
 export function FactureModal({ label, variant, livreurId, onCreated }: FactureModalProps) {
