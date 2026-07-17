@@ -13,8 +13,8 @@ type CommandeDto = {
   statut?: string | null;
   prix?: number | null;
   mode_paiement?: string | null;
-  telDepart?: number | null;
-  telArrivee?: number | null;
+  telDepart?: number | string | null;
+  telArrivee?: number | string | null;
   clientName?: string | null;
   livreurName?: string | null;
   zoneDepart?: string | null;

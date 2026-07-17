@@ -27,11 +27,13 @@ export type SousZone =
 
 export interface Commande extends Document {
   localisation_depart: string;
+  localisationDepart?: string | null;
   destination: string;
 
   date_debut: string | null;
   date_fin: string | null;
   date_demande: string;
+  dateDemande?: string | null;
 
   statut?: string; // à faire matcher avec ton enum Java (EN_ATTENTE, EN_COURS, etc.)
   prix?: number | null;
@@ -39,12 +41,17 @@ export interface Commande extends Document {
   modePaiement?: string | null;
   instructions?: string | null;
 
-  telDepart?: number | null;
-  telArrivee?: number | null;
+  telDepart?: number | string | null;
+  telArrivee?: number | string | null;
 
   clientId?: Types.ObjectId | null;
   transporteurId?: Types.ObjectId | null;
   idAmie?: Types.ObjectId | null;
+  partenaireId?: string | null;
+  externalBusinessId?: string | null;
+  externalOrderId?: string | null;
+  nomDepart?: string | null;
+  nomArrivee?: string | null;
 
   latitude_depart?: number | null;
   longitude_depart?: number | null;
@@ -56,6 +63,8 @@ export interface Commande extends Document {
   sous_zone_arrivee?: SousZone | null;
   zone_principale_depart: Zone;
   zone_principale_arrivee: Zone;
+  zonePrincipaleDepart?: Zone | null;
+  zonePrincipaleArrivee?: Zone | null;
 
   qrCodeDepart?: string | null;
   qrCodeDepartScanne?: boolean;
@@ -70,11 +79,13 @@ export interface Commande extends Document {
 const commandeSchema = new Schema<Commande>(
   {
     localisation_depart: { type: String, required: true },
+    localisationDepart: { type: String },
     destination: { type: String, required: true },
 
     date_debut: { type: String, default: null },
     date_fin: { type: String, default: null },
     date_demande: { type: String, required: true },
+    dateDemande: { type: String },
 
     statut: { type: String },
 
@@ -83,8 +94,8 @@ const commandeSchema = new Schema<Commande>(
     modePaiement: { type: String, default: null },
     instructions: { type: String, default: null },
 
-    telDepart: { type: Number, default: null },
-    telArrivee: { type: Number, default: null },
+    telDepart: { type: Schema.Types.Mixed, default: null },
+    telArrivee: { type: Schema.Types.Mixed, default: null },
 
     clientId: { type: Schema.Types.ObjectId, ref: "Utilisateur", default: null },
     transporteurId: {
@@ -93,6 +104,11 @@ const commandeSchema = new Schema<Commande>(
       default: null,
     },
     idAmie: { type: Schema.Types.ObjectId, ref: "Ami", default: null },
+    partenaireId: { type: String, default: null },
+    externalBusinessId: { type: String, default: null },
+    externalOrderId: { type: String, default: null },
+    nomDepart: { type: String, default: null },
+    nomArrivee: { type: String, default: null },
 
     latitude_depart: { type: Number, default: null },
     longitude_depart: { type: Number, default: null },
@@ -149,11 +165,13 @@ const commandeSchema = new Schema<Commande>(
       enum: ["GRAND_TUNIS", "COTIER_NORD", "CENTRE_EST", "SFAX", "SUD_EST", "INTERIEUR"],
       required: true,
     },
+    zonePrincipaleDepart: { type: String, default: null },
     zone_principale_arrivee: {
       type: String,
       enum: ["GRAND_TUNIS", "COTIER_NORD", "CENTRE_EST", "SFAX", "SUD_EST", "INTERIEUR"],
       required: true,
     },
+    zonePrincipaleArrivee: { type: String, default: null },
 
     qrCodeDepart: { type: String, default: null },
     qrCodeDepartScanne: { type: Boolean, default: false },
