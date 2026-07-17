@@ -63,6 +63,14 @@ const icons = {
       <circle cx="17" cy="18" r="1.4" fill="currentColor" />
     </svg>
   ),
+  partenaire: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5 stroke-[1.8] text-sky-600">
+      <path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" fill="none" stroke="currentColor" />
+      <path d="M16 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" fill="none" stroke="currentColor" />
+      <path d="M3.5 19a4.5 4.5 0 0 1 9 0" fill="none" stroke="currentColor" />
+      <path d="M13.5 18.5a3.7 3.7 0 0 1 7 0" fill="none" stroke="currentColor" />
+    </svg>
+  ),
   settings: (
     <svg viewBox="0 0 24 24" className="h-5 w-5 stroke-[1.8] text-slate-700">
       <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" />
@@ -82,6 +90,7 @@ const navItems: NavItem[] = [
   { label: "Gerer demande", href: "/admin/demande", icon: icons.demande, section: "Gestion" },
   { label: "Gerer commande", href: "/admin/commandes", icon: icons.commande, section: "Gestion" },
   { label: "Gerer livreur", href: "/admin/livreurs", icon: icons.livreur, section: "Gestion" },
+  { label: "Gerer partenaires", href: "/admin/partenaires", icon: icons.partenaire, section: "Gestion" },
   {
     label: "Tarification livreurs",
     href: "/admin/tarification-livreurs",
