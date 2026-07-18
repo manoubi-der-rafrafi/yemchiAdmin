@@ -66,12 +66,16 @@ export default async function TarificationLivreurDetailPage({
     dateDemande: commande.dateDemande ?? commande.date_demande ?? null,
     destination: commande.destination ?? null,
     prix: commande.prix ?? null,
+    prixLivreur: commande.prixLivreur ?? null,
+    prixSociete: commande.prixSociete ?? null,
     modePaiement: commande.modePaiement ?? null,
     mode_paiement: commande.mode_paiement ?? null,
     zonePrincipaleDepart: commande.zonePrincipaleDepart ?? commande.zone_principale_depart ?? null,
     sousZoneDepart: commande.sousZoneDepart ?? commande.sous_zone_depart ?? null,
     zonePrincipaleArrivee: commande.zonePrincipaleArrivee ?? commande.zone_principale_arrivee ?? null,
     sousZoneArrivee: commande.sousZoneArrivee ?? commande.sous_zone_arrivee ?? null,
+    distanceKm: commande.distanceKm ?? commande.distance_km ?? null,
+    vehicule: commande.vehicule ?? null,
   }));
   const facturesPlain = factures.map((facture: any) => ({
     _id: facture._id?.toString?.() ?? String(facture._id),

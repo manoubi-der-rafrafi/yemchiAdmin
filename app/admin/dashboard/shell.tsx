@@ -97,6 +97,12 @@ const navItems: NavItem[] = [
     icon: icons.tarification,
     section: "Gestion financière",
   },
+  {
+    label: "Tarifs vehicules",
+    href: "/admin/tarifs-vehicules",
+    icon: icons.tarification,
+    section: "Gestion financiÃ¨re",
+  },
   { label: "Gerer messages", href: "/admin/messages", icon: icons.messages, section: "Communication" },
   { label: "Contacts", href: "/admin/messages", icon: icons.messages, section: "Communication" },
   { label: "Setting", href: "/admin/settings", icon: icons.settings, section: "Paramètres" },

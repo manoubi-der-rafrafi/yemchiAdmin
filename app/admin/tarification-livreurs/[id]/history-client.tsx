@@ -9,6 +9,8 @@ type CommandeRow = {
   localisation_depart?: string | null;
   destination?: string | null;
   prix?: number | string | null;
+  prixLivreur?: number | string | null;
+  prixSociete?: number | string | null;
   modePaiement?: string | null;
   mode_paiement?: string | null;
   zonePrincipaleDepart?: string | null;
@@ -156,6 +158,8 @@ export function CommandesHistoryTable({ commandes }: { commandes: CommandeRow[] 
               <th className="px-5 py-2.5 font-semibold">Depart</th>
               <th className="px-5 py-2.5 font-semibold">Destination</th>
               <th className="px-5 py-2.5 font-semibold text-right">Prix</th>
+              <th className="px-5 py-2.5 font-semibold text-right">Livreur</th>
+              <th className="px-5 py-2.5 font-semibold text-right">Societe</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -165,6 +169,8 @@ export function CommandesHistoryTable({ commandes }: { commandes: CommandeRow[] 
               const zoneArrivee = commande.zonePrincipaleArrivee ?? commande.zone_principale_arrivee ?? "-";
               const sousZoneArrivee = commande.sousZoneArrivee ?? commande.sous_zone_arrivee ?? "-";
               const prix = typeof commande.prix === "string" ? Number(commande.prix) : commande.prix ?? 0;
+              const prixLivreur = Number(commande.prixLivreur ?? prix / 2);
+              const prixSociete = Number(commande.prixSociete ?? prix - prixLivreur);
 
               return (
                 <tr key={String(commande._id ?? Math.random())} className="hover:bg-slate-50/50">
@@ -176,12 +182,14 @@ export function CommandesHistoryTable({ commandes }: { commandes: CommandeRow[] 
                     {zoneArrivee} / {sousZoneArrivee}
                   </td>
                   <td className="px-5 py-3 text-right text-slate-700">{formatMoney(prix)} DT</td>
+                  <td className="px-5 py-3 text-right text-slate-700">{formatMoney(prixLivreur)} DT</td>
+                  <td className="px-5 py-3 text-right text-slate-700">{formatMoney(prixSociete)} DT</td>
                 </tr>
               );
             })}
             {paginated.length === 0 && (
               <tr>
-                <td className="px-5 py-5 text-center text-slate-500" colSpan={4}>
+                <td className="px-5 py-5 text-center text-slate-500" colSpan={6}>
                   Aucune commande livree pour le moment.
                 </td>
               </tr>

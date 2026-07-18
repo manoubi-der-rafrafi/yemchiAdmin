@@ -58,7 +58,7 @@ export const commandeRepository = {
           total: {
             $sum: {
               $convert: {
-                input: "$prix",
+                input: { $ifNull: ["$prixLivreur", { $divide: ["$prix", 2] }] },
                 to: "double",
                 onError: 0,
                 onNull: 0,
@@ -91,7 +91,7 @@ export const commandeRepository = {
           total: {
             $sum: {
               $convert: {
-                input: "$prix",
+                input: { $ifNull: ["$prixLivreur", { $divide: ["$prix", 2] }] },
                 to: "double",
                 onError: 0,
                 onNull: 0,
@@ -124,7 +124,7 @@ export const commandeRepository = {
           total: {
             $sum: {
               $convert: {
-                input: "$prix",
+                input: { $ifNull: ["$prixSociete", { $divide: ["$prix", 2] }] },
                 to: "double",
                 onError: 0,
                 onNull: 0,
