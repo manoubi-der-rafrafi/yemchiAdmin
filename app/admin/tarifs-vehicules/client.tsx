@@ -35,6 +35,11 @@ type Majoration = {
 
 const money = (value: number) => `${Number(value || 0).toFixed(3)} DT`;
 const dateLabel = (value?: string | null) => value ? new Date(value).toLocaleString("fr-FR") : "Actuel";
+const systemDateTimeLocal = () => {
+  const now = new Date();
+  const localTime = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return localTime.toISOString().slice(0, 16);
+};
 
 export function TarifsVehiculesClient({ payload }: { payload: JwtPayload }) {
   const [tarifs, setTarifs] = useState<Tarif[]>([]);
@@ -59,6 +64,15 @@ export function TarifsVehiculesClient({ payload }: { payload: JwtPayload }) {
     setLoading(false);
   }, []);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const updateSystemDate = () => {
+      setForm((old) => ({ ...old, dateDebut: systemDateTimeLocal() }));
+    };
+
+    updateSystemDate();
+    const intervalId = window.setInterval(updateSystemDate, 30_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   const current = useMemo(() => tarifs.filter((tarif) => !tarif.dateFin), [tarifs]);
   const history = useMemo(() => tarifs.filter((tarif) => tarif.dateFin), [tarifs]);
@@ -71,7 +85,7 @@ export function TarifsVehiculesClient({ payload }: { payload: JwtPayload }) {
     const courierKm = Number(form.prixParKilometreLivreur);
     const data = {
       ...form,
-      dateDebut: form.dateDebut,
+      dateDebut: new Date().toISOString(),
       prixCommencement: totalStart,
       prixCommencementLivreur: courierStart,
       prixParKilometre: totalKm,
@@ -80,7 +94,7 @@ export function TarifsVehiculesClient({ payload }: { payload: JwtPayload }) {
     const response = await fetch("/api/tarifications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resource: "tarif", data }) });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) setError(result.message || "Creation impossible");
-    else { setForm((old) => ({ ...old, dateDebut: "", prixCommencement: "", prixCommencementLivreur: "", prixParKilometre: "", prixParKilometreLivreur: "" })); await load(); }
+    else { setForm((old) => ({ ...old, dateDebut: systemDateTimeLocal(), prixCommencement: "", prixCommencementLivreur: "", prixParKilometre: "", prixParKilometreLivreur: "" })); await load(); }
     setSaving(false);
   }
 
@@ -103,7 +117,15 @@ export function TarifsVehiculesClient({ payload }: { payload: JwtPayload }) {
       <form onSubmit={submitTarif} className="grid gap-3 rounded-2xl bg-white/80 p-5 shadow-sm md:grid-cols-3">
         <h2 className="md:col-span-3 text-lg font-semibold">Activer un nouveau tarif</h2>
         <select className={inputClass} value={form.typeVehicule} onChange={(e) => setForm({ ...form, typeVehicule: e.target.value as typeof form.typeVehicule })}>{VEHICLES.map((v) => <option key={v}>{v}</option>)}</select>
-        <input required type="datetime-local" className={inputClass} value={form.dateDebut} onChange={(e) => setForm({ ...form, dateDebut: e.target.value })} />
+        <input
+          required
+          readOnly
+          type="datetime-local"
+          aria-label="Date de début système"
+          title="Date et heure définies automatiquement par le système"
+          className={`${inputClass} cursor-not-allowed bg-slate-50 text-slate-600`}
+          value={form.dateDebut}
+        />
         <span />
         <input required min="0" step="0.001" type="number" placeholder="Commencement total" className={inputClass} value={form.prixCommencement} onChange={(e) => setForm({ ...form, prixCommencement: e.target.value })} />
         <input required min="0" step="0.001" type="number" placeholder="Commencement livreur" className={inputClass} value={form.prixCommencementLivreur} onChange={(e) => setForm({ ...form, prixCommencementLivreur: e.target.value })} />

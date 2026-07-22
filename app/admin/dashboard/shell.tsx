@@ -90,6 +90,8 @@ const navItems: NavItem[] = [
   { label: "Gerer demande", href: "/admin/demande", icon: icons.demande, section: "Gestion" },
   { label: "Gerer commande", href: "/admin/commandes", icon: icons.commande, section: "Gestion" },
   { label: "Gerer livreur", href: "/admin/livreurs", icon: icons.livreur, section: "Gestion" },
+  { label: "Suivi utilisateurs", href: "/admin/suivi-utilisateurs", icon: icons.livreur, section: "Gestion" },
+  { label: "Analyse d’utilisation", href: "/admin/analyse-utilisation", icon: icons.dashboard, section: "Gestion" },
   { label: "Gerer partenaires", href: "/admin/partenaires", icon: icons.partenaire, section: "Gestion" },
   {
     label: "Tarification des livreurs",
