@@ -22,6 +22,10 @@ type CommandeRow = {
   dateDemande?: string | null;
   destination?: string | null;
   prix?: number | string | null;
+  prixLivreur?: number | string | null;
+  prixSociete?: number | string | null;
+  distanceKm?: number | null;
+  vehicule?: string | null;
   modePaiement?: string | null;
   mode_paiement?: string | null;
   zonePrincipaleDepart?: string | null;
@@ -75,15 +79,15 @@ export function TarificationLivreurDetailClient({
     });
   }, [rows]);
 
-  const diffRevenue = (totalEnligne - totalHorsEnligne) * 0.5;
+  const diffRevenue = totalEnligne - totalHorsEnligne;
   const diffFacture = totalEntrepriseVerse - totalLivreurVerse;
-  const valPaye = diffFacture - diffRevenue;
+  const valPaye = diffRevenue - diffFacture;
   const showDette = valPaye < 0;
   const specialLabel = showDette ? "Dette livreur" : "Credit livreur";
   const specialValue = showDette ? Math.abs(valPaye) : valPaye;
   const epsilon = 0.005;
-  const showEncaissement = valPaye > epsilon;
-  const showDecaissement = valPaye < -epsilon;
+  const showEncaissement = valPaye < -epsilon;
+  const showDecaissement = valPaye > epsilon;
   const showFactureAction = showEncaissement || showDecaissement;
 
   const handleFactureCreated = (facture: {
@@ -149,9 +153,9 @@ export function TarificationLivreurDetailClient({
 
         <section className="grid gap-4 md:grid-cols-4">
           {[
-            { label: "Total revenue", value: `${formatMoney(totalRevenue)} DT` },
-            { label: "Total enligne", value: `${formatMoney(totalEnligne)} DT` },
-            { label: "Total non enligne", value: `${formatMoney(totalHorsEnligne)} DT` },
+            { label: "Gains livreur", value: `${formatMoney(totalRevenue)} DT` },
+            { label: "Gains a verser (en ligne)", value: `${formatMoney(totalEnligne)} DT` },
+            { label: "Part societe a reverser", value: `${formatMoney(totalHorsEnligne)} DT` },
             { label: specialLabel, value: `${formatMoney(specialValue)} DT` },
           ].map((item) => (
             <div

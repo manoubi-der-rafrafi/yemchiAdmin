@@ -31,6 +31,23 @@ const extractRole = (payload: Record<string, unknown>) => {
   return role?.toLowerCase();
 };
 
+const normalizeReponse = (reponse: unknown): ReponseDemande => {
+  if (reponse === false || reponse == null || reponse === "") {
+    return ReponseDemande.NON_TRAITER;
+  }
+
+  if (reponse === true) {
+    return ReponseDemande.ACCEPTER;
+  }
+
+  const normalized = String(reponse).trim().toLowerCase().replace(/[-_]+/g, " ");
+  if (normalized === "false") return ReponseDemande.NON_TRAITER;
+  if (normalized === "true") return ReponseDemande.ACCEPTER;
+  if (normalized === ReponseDemande.ACCEPTER) return ReponseDemande.ACCEPTER;
+  if (normalized === ReponseDemande.REFUSER) return ReponseDemande.REFUSER;
+  return ReponseDemande.NON_TRAITER;
+};
+
 export default async function AdminDemandePage() {
   const token = (await cookies()).get("yemchi_admin_token")?.value;
   const secret = process.env.JWT_SECRET;
@@ -56,7 +73,7 @@ export default async function AdminDemandePage() {
     typeVehicule: demande.typeVehicule,
     dateDemande: demande.dateDemande ?? undefined,
     dateReponse: demande.dateReponse ?? null,
-    reponse: (demande.reponse as ReponseDemande | undefined) ?? ReponseDemande.NON_TRAITER,
+    reponse: normalizeReponse(demande.reponse),
     dossierPhysique: demande.dossierPhysique ?? false,
     causesRefus:
       demande.causesRefus instanceof Map

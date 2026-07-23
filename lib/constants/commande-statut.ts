@@ -2,6 +2,7 @@ export const COMMANDE_STATUTS = [
   "annulee",
   "en_attente",
   "en_cours",
+  "en_route",
   "livree",
   "confirmer",
   "envoyee",

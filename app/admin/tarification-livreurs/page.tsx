@@ -58,9 +58,9 @@ export default async function AdminTarificationLivreursPage() {
         factureService.sumMontantEntrepriseVerseLivreurByLivreurId(id),
         factureService.sumMontantLivreurVerseEntrepriseByLivreurId(id),
       ]);
-      const diffRevenue = (totalEnligne - totalHorsEnligne) * 0.5;
+      const diffRevenue = totalEnligne - totalHorsEnligne;
       const diffFacture = totalFactureEntrepriseVerseLivreur - totalFactureLivreurVerseEntreprise;
-      const valPaye = diffFacture - diffRevenue;
+      const valPaye = diffRevenue - diffFacture;
       return {
         id,
         nom: livreur.nom,

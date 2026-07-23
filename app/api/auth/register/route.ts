@@ -3,6 +3,8 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/config/db";
 import UtilisateurModel from "@/lib/models/utilisateur";
+import { cookies } from "next/headers";
+import { verifyJwt } from "@/lib/utils/jwt";
 
 const base64url = (input: Buffer | string) =>
   Buffer.from(input)
@@ -29,7 +31,7 @@ const signJwt = (payload: Record<string, unknown>, secret: string) => {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { nom, prenom, email, mot_de_passe, telephone, role } = body;
+    const { nom, prenom, email, mot_de_passe, telephone } = body;
 
     if (!email || !mot_de_passe || !nom || !prenom) {
       return NextResponse.json(
@@ -46,6 +48,20 @@ export async function POST(req: Request) {
     }
 
     await connectDB();
+    const adminCount = await UtilisateurModel.countDocuments({ role: "admin" });
+    if (adminCount > 0) {
+      const token = (await cookies()).get("yemchi_admin_token")?.value;
+      const payload = token ? await verifyJwt(token, process.env.JWT_SECRET) : null;
+      const rawRole = payload?.role || payload?.roles?.[0] || payload?.authorities?.[0];
+      const currentRole = rawRole?.replace(/^ROLE_/i, "").toLowerCase();
+      if (!payload || currentRole !== "admin") {
+        return NextResponse.json(
+          { message: "Seul un administrateur peut créer un autre administrateur" },
+          { status: 403 },
+        );
+      }
+    }
+
     const existing = await UtilisateurModel.findOne({ email }).exec();
     if (existing) {
       return NextResponse.json(
@@ -63,7 +79,7 @@ export async function POST(req: Request) {
       mot_de_passe: hashedPassword,
       motDePasse: hashedPassword, // compat avec docs existants
       telephone,
-      role: role || "client",
+      role: "admin",
       statut: "actif",
     });
 
