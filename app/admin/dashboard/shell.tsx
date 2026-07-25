@@ -71,6 +71,12 @@ const icons = {
       <path d="M13.5 18.5a3.7 3.7 0 0 1 7 0" fill="none" stroke="currentColor" />
     </svg>
   ),
+  errors: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5 stroke-[1.8] text-red-600">
+      <path d="M12 3 2.8 19h18.4L12 3Z" fill="none" stroke="currentColor" />
+      <path d="M12 9v4.5M12 17h.01" stroke="currentColor" strokeLinecap="round" />
+    </svg>
+  ),
   settings: (
     <svg viewBox="0 0 24 24" className="h-5 w-5 stroke-[1.8] text-slate-700">
       <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" />
@@ -92,6 +98,7 @@ const navItems: NavItem[] = [
   { label: "Gerer livreur", href: "/admin/livreurs", icon: icons.livreur, section: "Gestion" },
   { label: "Suivi utilisateurs", href: "/admin/suivi-utilisateurs", icon: icons.livreur, section: "Gestion" },
   { label: "Analyse d’utilisation", href: "/admin/analyse-utilisation", icon: icons.dashboard, section: "Gestion" },
+  { label: "Erreurs applications", href: "/admin/application-errors", icon: icons.errors, section: "Gestion" },
   { label: "Gerer partenaires", href: "/admin/partenaires", icon: icons.partenaire, section: "Gestion" },
   {
     label: "Tarification des livreurs",
@@ -132,6 +139,30 @@ export function DashboardShell({
 
   useEffect(() => {
     setMounted(true);
+    let reporting = false;
+    const report = (reason: unknown) => {
+      if (reporting) return;
+      reporting = true;
+      const error = reason instanceof Error ? reason : new Error(String(reason));
+      void fetch("/api/application-errors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: error.message,
+          type: error.name,
+          page: window.location.pathname,
+          stackTrace: error.stack,
+        }),
+      }).catch(() => {}).finally(() => { reporting = false; });
+    };
+    const onError = (event: ErrorEvent) => report(event.error || event.message);
+    const onRejection = (event: PromiseRejectionEvent) => report(event.reason);
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
   }, []);
 
   const grouped = useMemo(() => {

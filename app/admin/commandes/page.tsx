@@ -2,7 +2,9 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { verifyJwt, type JwtPayload } from "@/lib/utils/jwt";
 import { commandeService } from "@/lib/service/commandeService";
+import { utilisateurService } from "@/lib/service/utilisateurService";
 import { type Commande } from "@/lib/models/commande";
+import { type Utilisateur } from "@/lib/models/utilisateur";
 import { CommandePageContent } from "./client";
 
 type CommandeDto = {
@@ -17,6 +19,7 @@ type CommandeDto = {
   telArrivee?: number | string | null;
   clientName?: string | null;
   livreurName?: string | null;
+  livreurId?: string | null;
   zoneDepart?: string | null;
   sousZoneDepart?: string | null;
   zoneArrivee?: string | null;
@@ -29,6 +32,13 @@ type CommandeDto = {
     adresse?: string | null;
     image?: string | null;
   };
+};
+
+type LivreurDto = {
+  id: string;
+  nom: string;
+  prenom: string;
+  email?: string | null;
 };
 
 const extractRole = (payload: Record<string, unknown>) => {
@@ -54,43 +64,69 @@ export default async function AdminCommandesPage() {
     redirect("/auth");
   }
 
-  const commandes = await commandeService.list();
+  const [commandes, livreurs] = await Promise.all([
+    commandeService.list(),
+    utilisateurService.list({ role: "transporteur" }),
+  ]);
 
-  const commandesDto: CommandeDto[] = commandes.map((commande: Commande) => ({
-    id: commande._id.toString(),
-    localisation_depart: commande.localisation_depart,
-    destination: commande.destination,
-    date_demande: commande.date_demande ?? null,
-    statut: commande.statut ?? null,
-    prix: commande.prix ?? null,
-    mode_paiement: (commande as any).modePaiement ?? commande.mode_paiement ?? null,
-    telDepart: commande.telDepart ?? null,
-    telArrivee: commande.telArrivee ?? null,
-    zoneDepart: (commande as any).zone_principale_depart ?? null,
-    sousZoneDepart: (commande as any).sous_zone_depart ?? null,
-    zoneArrivee: (commande as any).zone_principale_arrivee ?? null,
-    sousZoneArrivee: (commande as any).sous_zone_arrivee ?? null,
-    clientName:
-      typeof commande.clientId === "object" && commande.clientId
-        ? `${(commande.clientId as any).nom ?? ""} ${(commande.clientId as any).prenom ?? ""}`.trim() || null
-        : null,
-    clientInfo:
-      typeof commande.clientId === "object" && commande.clientId
-        ? {
-            nom: (commande.clientId as any).nom ?? null,
-            prenom: (commande.clientId as any).prenom ?? null,
-            email: (commande.clientId as any).email ?? null,
-            telephone: (commande.clientId as any).telephone ?? null,
-            adresse: (commande.clientId as any).adresse ?? null,
-            image: (commande.clientId as any).image ?? null,
-          }
-        : undefined,
-    livreurName:
-      typeof commande.transporteurId === "object" && commande.transporteurId
-        ? `${(commande.transporteurId as any).nom ?? ""} ${(commande.transporteurId as any).prenom ?? ""}`.trim() ||
-          null
-        : null,
+  const commandesDto: CommandeDto[] = commandes.map((commande: Commande) => {
+    const client = commande.clientId as any;
+    const livreur = commande.transporteurId as any;
+
+    return {
+      id: commande._id.toString(),
+      localisation_depart: commande.localisation_depart,
+      destination: commande.destination,
+      date_demande: commande.date_demande ?? null,
+      statut: commande.statut ?? null,
+      prix: commande.prix ?? null,
+      mode_paiement: (commande as any).modePaiement ?? commande.mode_paiement ?? null,
+      telDepart: commande.telDepart ?? null,
+      telArrivee: commande.telArrivee ?? null,
+      zoneDepart: (commande as any).zone_principale_depart ?? null,
+      sousZoneDepart: (commande as any).sous_zone_depart ?? null,
+      zoneArrivee: (commande as any).zone_principale_arrivee ?? null,
+      sousZoneArrivee: (commande as any).sous_zone_arrivee ?? null,
+      clientName:
+        typeof client === "object" && client
+          ? `${client.nom ?? ""} ${client.prenom ?? ""}`.trim() || null
+          : null,
+      clientInfo:
+        typeof client === "object" && client
+          ? {
+              nom: client.nom ?? null,
+              prenom: client.prenom ?? null,
+              email: client.email ?? null,
+              telephone: client.telephone ?? null,
+              adresse: client.adresse ?? null,
+              image: client.image ?? null,
+            }
+          : undefined,
+      livreurName:
+        typeof livreur === "object" && livreur
+          ? `${livreur.nom ?? ""} ${livreur.prenom ?? ""}`.trim() || null
+          : null,
+      livreurId:
+        typeof livreur === "object" && livreur
+          ? livreur._id?.toString() ?? null
+          : livreur
+            ? String(livreur)
+            : null,
+    };
+  });
+
+  const livreursDto: LivreurDto[] = livreurs.map((livreur: Utilisateur) => ({
+    id: livreur._id.toString(),
+    nom: livreur.nom,
+    prenom: livreur.prenom,
+    email: livreur.email ?? null,
   }));
 
-  return <CommandePageContent payload={payload as JwtPayload} commandes={commandesDto} />;
+  return (
+    <CommandePageContent
+      payload={payload as JwtPayload}
+      commandes={commandesDto}
+      livreurs={livreursDto}
+    />
+  );
 }

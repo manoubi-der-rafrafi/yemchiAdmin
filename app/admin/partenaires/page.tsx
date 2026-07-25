@@ -2,6 +2,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { verifyJwt, type JwtPayload } from "@/lib/utils/jwt";
 import { partenaireService } from "@/lib/service/partenaireService";
+import { commandeService } from "@/lib/service/commandeService";
+import { facturePartenaireService } from "@/lib/service/facturePartenaireService";
 import { type Partenaire } from "@/lib/models/partenaire";
 import { PartenairesPageContent, type PartenaireRow } from "./client";
 
@@ -36,15 +38,54 @@ export default async function AdminPartenairesPage() {
 
   const partenaires = await partenaireService.list();
 
-  const partenairesDto: PartenaireRow[] = partenaires.map((partenaire: Partenaire) => ({
-    id: partenaire._id.toString(),
-    externalBusinessId: partenaire.externalBusinessId ?? null,
-    externalOwnerUserId: partenaire.externalOwnerUserId ?? null,
-    businessName: partenaire.businessName,
-    statut: partenaire.statut ?? "ACTIF",
-    createdAt: toIso(partenaire.createdAt),
-    updatedAt: toIso(partenaire.updatedAt),
-  }));
+  const partenairesDto: PartenaireRow[] = await Promise.all(
+    partenaires.map(async (partenaire: Partenaire) => {
+      const id = partenaire._id.toString();
+      const externalBusinessId = partenaire.externalBusinessId ?? null;
+      const filter = externalBusinessId
+        ? { $or: [{ partenaireId: id }, { externalBusinessId }] }
+        : { partenaireId: id };
+      const [commandes, factures] = await Promise.all([
+        commandeService.list(filter as any),
+        facturePartenaireService.list(id, externalBusinessId),
+      ]);
+      const delivered = commandes.filter((commande) => /^livr/i.test(commande.statut ?? ""));
+      const produitsCash = delivered
+        .filter(
+          (commande) =>
+            !/^en[\s_]*ligne$/i.test(commande.modePaiement ?? commande.mode_paiement ?? "")
+        )
+        .reduce((sum, commande) => sum + Number(commande.prixProduitsPartenaire ?? 0), 0);
+      const livraisonOnline = delivered
+        .filter((commande) =>
+          /^en[\s_]*ligne$/i.test(commande.modePaiement ?? commande.mode_paiement ?? "")
+        )
+        .reduce(
+          (sum, commande) => sum + Number(commande.prixLivraison ?? commande.prix ?? 0),
+          0
+        );
+      const accepted = factures.filter(
+        (facture) => !facture.confirmer || facture.confirmer === "ACCEPTER"
+      );
+      const entrepriseVerse = accepted
+        .filter((facture) => facture.type === "ENTREPRISE_VERSE_PARTENAIRE")
+        .reduce((sum, facture) => sum + Number(facture.montant), 0);
+      const partenaireVerse = accepted
+        .filter((facture) => facture.type === "PARTENAIRE_VERSE_ENTREPRISE")
+        .reduce((sum, facture) => sum + Number(facture.montant), 0);
+
+      return {
+        id,
+        externalBusinessId,
+        externalOwnerUserId: partenaire.externalOwnerUserId ?? null,
+        businessName: partenaire.businessName,
+        statut: partenaire.statut ?? "ACTIF",
+        createdAt: toIso(partenaire.createdAt),
+        updatedAt: toIso(partenaire.updatedAt),
+        solde: produitsCash - livraisonOnline - entrepriseVerse + partenaireVerse,
+      };
+    })
+  );
 
   return <PartenairesPageContent payload={payload as JwtPayload} partenaires={partenairesDto} />;
 }

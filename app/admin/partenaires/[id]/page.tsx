@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { verifyJwt, type JwtPayload } from "@/lib/utils/jwt";
 import { commandeService } from "@/lib/service/commandeService";
 import { partenaireService } from "@/lib/service/partenaireService";
+import { facturePartenaireService } from "@/lib/service/facturePartenaireService";
 import { type Commande } from "@/lib/models/commande";
 import { PartenaireCommandesPageContent, type PartenaireDetail, type PartnerCommandeRow } from "./client";
 
@@ -57,7 +58,13 @@ export default async function AdminPartenaireDetailPage({
       }
     : { partenaireId: partenaireDto.id };
 
-  const commandes = await commandeService.list(filter as any);
+  const [commandes, factures, totalEntrepriseVersePartenaire, totalPartenaireVerseEntreprise] =
+    await Promise.all([
+      commandeService.list(filter as any),
+      facturePartenaireService.list(partenaireDto.id, partenaireDto.externalBusinessId),
+      facturePartenaireService.sumEntrepriseVerse(partenaireDto.id),
+      facturePartenaireService.sumPartenaireVerse(partenaireDto.id),
+    ]);
 
   const commandesDto: PartnerCommandeRow[] = commandes.map((commande: Commande) => {
     const data = commande as any;
@@ -71,6 +78,14 @@ export default async function AdminPartenaireDetailPage({
       date_demande: data.date_demande ?? data.dateDemande ?? null,
       statut: data.statut ?? null,
       prix: data.prix ?? null,
+      prixLivreur: data.prixLivreur ?? null,
+      prixSociete: data.prixSociete ?? null,
+      prixProduitsPartenaire: data.prixProduitsPartenaire ?? null,
+      prixLivraison: data.prixLivraison ?? data.prix ?? null,
+      prixTotalClient: data.prixTotalClient ?? null,
+      encaisseurInitial: data.encaisseurInitial ?? null,
+      statutEncaissementSociete: data.statutEncaissementSociete ?? null,
+      dateEncaissementSociete: data.dateEncaissementSociete ?? null,
       mode_paiement: data.modePaiement ?? data.mode_paiement ?? null,
       telDepart: data.telDepart ?? null,
       telArrivee: data.telArrivee ?? null,
@@ -90,6 +105,15 @@ export default async function AdminPartenaireDetailPage({
       payload={payload as JwtPayload}
       partenaire={partenaireDto}
       commandes={commandesDto}
+      factures={factures.map((facture) => ({
+        _id: facture._id.toString(),
+        montant: Number(facture.montant),
+        dateTimle: facture.dateTimle,
+        type: facture.type,
+        confirmer: facture.confirmer,
+      }))}
+      totalEntrepriseVersePartenaire={Number(totalEntrepriseVersePartenaire)}
+      totalPartenaireVerseEntreprise={Number(totalPartenaireVerseEntreprise)}
     />
   );
 }

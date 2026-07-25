@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { commandeService } from "@/lib/service/commandeService";
 
+const normalizeStatut = (value?: string | null) =>
+  value?.trim().toLowerCase().replace(/[\s-]+/g, "_") ?? "";
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -17,7 +20,26 @@ export async function PATCH(
       return NextResponse.json({ message: "Statut requis" }, { status: 400 });
     }
 
+    const existing = await commandeService.get(id);
+    if (!existing) {
+      return NextResponse.json({ message: "Commande introuvable" }, { status: 404 });
+    }
+
+    const previousStatut = normalizeStatut(existing.statut);
+    const nextStatut = normalizeStatut(statut);
     const updateData: Record<string, unknown> = { statut };
+
+    if (previousStatut === "en_route" && nextStatut === "confirmer") {
+      updateData.transporteurId = null;
+    }
+
+    if (previousStatut === "confirmer" && nextStatut === "en_route" && !transporteurId) {
+      return NextResponse.json(
+        { message: "Livreur requis pour passer la commande en route" },
+        { status: 400 }
+      );
+    }
+
     if (transporteurId) updateData.transporteurId = transporteurId;
     if (qrCodeDepart) updateData.qrCodeDepart = qrCodeDepart;
     if (qrCodeArrivee) updateData.qrCodeArrivee = qrCodeArrivee;

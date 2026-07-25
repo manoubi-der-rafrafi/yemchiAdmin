@@ -39,6 +39,14 @@ export interface Commande extends Document {
   prix?: number | null;
   prixLivreur?: number | null;
   prixSociete?: number | null;
+  prixProduitsPartenaire?: number | null;
+  prixLivraison?: number | null;
+  prixTotalClient?: number | null;
+  sourceCommande?: "C2C" | "B2C" | null;
+  encaisseurInitial?: "PARTENAIRE" | "LIVREUR" | "SOCIETE" | null;
+  statutReglement?: "NON_REGLE" | "PARTIELLEMENT_REGLE" | "REGLE" | null;
+  statutEncaissementSociete?: "NON_APPLICABLE" | "EN_ATTENTE" | "RECU" | null;
+  dateEncaissementSociete?: string | null;
   tarificationVehiculeId?: string | null;
   majorationTarifId?: string | null;
   mode_paiement?: string | null;
@@ -96,6 +104,26 @@ const commandeSchema = new Schema<Commande>(
     prix: { type: Number, default: null },
     prixLivreur: { type: Number, default: null },
     prixSociete: { type: Number, default: null },
+    prixProduitsPartenaire: { type: Number, default: null },
+    prixLivraison: { type: Number, default: null },
+    prixTotalClient: { type: Number, default: null },
+    sourceCommande: { type: String, enum: ["C2C", "B2C"], default: null },
+    encaisseurInitial: {
+      type: String,
+      enum: ["PARTENAIRE", "LIVREUR", "SOCIETE"],
+      default: null,
+    },
+    statutReglement: {
+      type: String,
+      enum: ["NON_REGLE", "PARTIELLEMENT_REGLE", "REGLE"],
+      default: null,
+    },
+    statutEncaissementSociete: {
+      type: String,
+      enum: ["NON_APPLICABLE", "EN_ATTENTE", "RECU"],
+      default: null,
+    },
+    dateEncaissementSociete: { type: String, default: null },
     tarificationVehiculeId: { type: String, default: null },
     majorationTarifId: { type: String, default: null },
     mode_paiement: { type: String, default: null },

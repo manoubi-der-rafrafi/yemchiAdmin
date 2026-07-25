@@ -5,6 +5,10 @@ import { useMemo, useState } from "react";
 import type { JwtPayload } from "@/lib/utils/jwt";
 import { COMMANDE_STATUTS } from "@/lib/constants/commande-statut";
 import { DashboardShell } from "../../dashboard/shell";
+import {
+  FacturePartenaireModal,
+  type FacturePartenaireRow,
+} from "./facture-partenaire-modal";
 
 export type PartenaireDetail = {
   id: string;
@@ -24,6 +28,14 @@ export type PartnerCommandeRow = {
   date_demande?: string | null;
   statut?: string | null;
   prix?: number | string | null;
+  prixLivreur?: number | string | null;
+  prixSociete?: number | string | null;
+  prixProduitsPartenaire?: number | string | null;
+  prixLivraison?: number | string | null;
+  prixTotalClient?: number | string | null;
+  encaisseurInitial?: string | null;
+  statutEncaissementSociete?: string | null;
+  dateEncaissementSociete?: string | null;
   mode_paiement?: string | null;
   telDepart?: number | string | null;
   telArrivee?: number | string | null;
@@ -51,18 +63,84 @@ export function PartenaireCommandesPageContent({
   payload,
   partenaire,
   commandes,
+  factures,
+  totalEntrepriseVersePartenaire,
+  totalPartenaireVerseEntreprise,
 }: {
   payload: JwtPayload;
   partenaire: PartenaireDetail;
   commandes: PartnerCommandeRow[];
+  factures: FacturePartenaireRow[];
+  totalEntrepriseVersePartenaire: number;
+  totalPartenaireVerseEntreprise: number;
 }) {
   const [rows, setRows] = useState<PartnerCommandeRow[]>(commandes);
   const [statusFilter, setStatusFilter] = useState("Toutes");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [collectingId, setCollectingId] = useState<string | null>(null);
   const [pendingStatut, setPendingStatut] = useState<Record<string, string>>({});
+  const [factureRows, setFactureRows] = useState(factures);
   const pageSize = 10;
+
+  const money = (value: number) =>
+    new Intl.NumberFormat("fr-TN", {
+      minimumFractionDigits: 3,
+      maximumFractionDigits: 3,
+    }).format(value);
+
+  const acceptedFactures = factureRows.filter(
+    (facture) => !facture.confirmer || facture.confirmer === "ACCEPTER"
+  );
+  const entrepriseVerse = acceptedFactures
+    .filter((facture) => facture.type === "ENTREPRISE_VERSE_PARTENAIRE")
+    .reduce((sum, facture) => sum + Number(facture.montant || 0), 0);
+  const partenaireVerse = acceptedFactures
+    .filter((facture) => facture.type === "PARTENAIRE_VERSE_ENTREPRISE")
+    .reduce((sum, facture) => sum + Number(facture.montant || 0), 0);
+  const deliveredRows = rows.filter((commande) => /^livr/i.test(commande.statut ?? ""));
+  const onlineRows = deliveredRows.filter((commande) =>
+    /^en[\s_]*ligne$/i.test(commande.mode_paiement ?? "")
+  );
+  const cashRows = deliveredRows.filter(
+    (commande) => !/^en[\s_]*ligne$/i.test(commande.mode_paiement ?? "")
+  );
+  const productAmount = (commande: PartnerCommandeRow) =>
+    Number(commande.prixProduitsPartenaire ?? 0);
+  const deliveryAmount = (commande: PartnerCommandeRow) =>
+    Number(commande.prixLivraison ?? commande.prix ?? 0);
+  const totalAmount = (commande: PartnerCommandeRow) =>
+    Number(
+      commande.prixTotalClient ??
+        productAmount(commande) + deliveryAmount(commande)
+    );
+  const cashAwaitingCollection = cashRows.filter(
+    (commande) => commande.statutEncaissementSociete !== "RECU"
+  );
+  const cashCollected = cashRows.filter(
+    (commande) => commande.statutEncaissementSociete === "RECU"
+  );
+  const argentChezLivreur = cashAwaitingCollection.reduce(
+    (sum, commande) => sum + totalAmount(commande),
+    0
+  );
+  const argentChezPartenaire = onlineRows.reduce((sum, commande) => sum + totalAmount(commande), 0);
+  const produitsCash = cashRows.reduce((sum, commande) => sum + productAmount(commande), 0);
+  const livraisonOnline = onlineRows.reduce((sum, commande) => sum + deliveryAmount(commande), 0);
+  const soldePartenaire =
+    produitsCash - livraisonOnline - entrepriseVerse + partenaireVerse;
+  const soldeEpsilon = 0.0005;
+  const societeDoitPayer = soldePartenaire > soldeEpsilon;
+  const partenaireDoitPayer = soldePartenaire < -soldeEpsilon;
+  const argentChezSociete =
+    cashCollected.reduce(
+      (sum, commande) =>
+        sum + productAmount(commande) + Number(commande.prixSociete ?? 0),
+      0
+    ) +
+    partenaireVerse -
+    entrepriseVerse;
 
   const statusOptions = useMemo(() => {
     const unique = new Set<string>();
@@ -88,7 +166,7 @@ export function PartenaireCommandesPageContent({
   const paginated = filteredCommandes.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const hideEnvoyeFields = /envoy/i.test(statusFilter);
   const hideLivreur = hideEnvoyeFields || /confirm/i.test(statusFilter);
-  const columnCount = 7 + (!hideLivreur ? 1 : 0);
+  const columnCount = 9 + (!hideLivreur ? 1 : 0);
 
   const changePage = (next: number) => {
     setPage(Math.min(Math.max(1, next), totalPages));
@@ -119,6 +197,36 @@ export function PartenaireCommandesPageContent({
     }
   };
 
+  const confirmerEncaissementSociete = async (commande: PartnerCommandeRow) => {
+    try {
+      setCollectingId(commande.id);
+      const response = await fetch(
+        `/api/commande/${commande.id}/encaissement-societe`,
+        { method: "PATCH" }
+      );
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.message ?? "Encaissement impossible.");
+      }
+      setRows((current) =>
+        current.map((item) =>
+          item.id === commande.id
+            ? {
+                ...item,
+                statutEncaissementSociete: "RECU",
+                dateEncaissementSociete:
+                  payload?.dateEncaissementSociete ?? new Date().toISOString(),
+              }
+            : item
+        )
+      );
+    } catch (error) {
+      console.error("Erreur lors de la confirmation de l'encaissement", error);
+    } finally {
+      setCollectingId(null);
+    }
+  };
+
   return (
     <DashboardShell
       payload={payload}
@@ -133,6 +241,68 @@ export function PartenaireCommandesPageContent({
         </Link>
       }
     >
+      <section className="mb-6 border-y border-slate-200 bg-white">
+        <div className="grid gap-px bg-slate-200 md:grid-cols-4">
+          <div className="bg-white p-5">
+            <p className="text-xs font-semibold text-slate-500">Argent chez le livreur</p>
+            <p className="mt-2 text-xl font-semibold text-slate-900">{money(argentChezLivreur)} TND</p>
+            <p className="mt-1 text-xs text-slate-500">Commandes livrees, paiement a destination</p>
+          </div>
+          <div className="bg-white p-5">
+            <p className="text-xs font-semibold text-slate-500">Argent chez le partenaire</p>
+            <p className="mt-2 text-xl font-semibold text-slate-900">{money(argentChezPartenaire)} TND</p>
+            <p className="mt-1 text-xs text-slate-500">Commandes livrees, paiement en ligne</p>
+          </div>
+          <div className="bg-white p-5">
+            <p className="text-xs font-semibold text-slate-500">Argent chez la societe</p>
+            <p className="mt-2 text-xl font-semibold text-slate-900">
+              {money(argentChezSociete)} TND
+            </p>
+            <p className="mt-1 text-xs text-slate-500">Encaissements confirmes et factures partenaires</p>
+          </div>
+          <div className="bg-white p-5">
+            <p className="text-xs font-semibold text-slate-500">Solde partenaire</p>
+            <p className={`mt-2 text-xl font-semibold ${soldePartenaire >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+              {money(Math.abs(soldePartenaire))} TND
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              {soldePartenaire > 0
+                ? "La societe doit payer le partenaire"
+                : soldePartenaire < 0
+                  ? "Le partenaire doit payer la societe"
+                  : "Comptes equilibres"}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 px-5 py-4">
+          {societeDoitPayer ? (
+            <FacturePartenaireModal
+              partenaireId={partenaire.id}
+              externalBusinessId={partenaire.externalBusinessId}
+              type="ENTREPRISE_VERSE_PARTENAIRE"
+              label="Societe verse partenaire"
+              onCreated={(facture) => setFactureRows((current) => [facture, ...current])}
+            />
+          ) : partenaireDoitPayer ? (
+            <FacturePartenaireModal
+              partenaireId={partenaire.id}
+              externalBusinessId={partenaire.externalBusinessId}
+              type="PARTENAIRE_VERSE_ENTREPRISE"
+              label="Partenaire verse societe"
+              onCreated={(facture) => setFactureRows((current) => [facture, ...current])}
+            />
+          ) : (
+            <span className="text-sm font-medium text-slate-500">
+              Aucun paiement partenaire requis
+            </span>
+          )}
+          <span className="ml-auto text-xs text-slate-500">
+            Base initiale: {money(totalEntrepriseVersePartenaire)} TND verses au partenaire,
+            {" "}{money(totalPartenaireVerseEntreprise)} TND recus du partenaire
+          </span>
+        </div>
+      </section>
+
       <section className="rounded-2xl border border-white/70 bg-white/80 backdrop-blur shadow-sm shadow-[0_18px_60px_rgba(14,165,233,0.08)]">
         <div className="flex flex-wrap items-center gap-3 px-6 py-4">
           <div>
@@ -193,7 +363,9 @@ export function PartenaireCommandesPageContent({
                 <th className="px-6 py-3 font-semibold">Statut</th>
                 <th className="px-6 py-3 font-semibold">Paiement</th>
                 {!hideLivreur && <th className="px-6 py-3 font-semibold">Livreur</th>}
-                <th className="px-6 py-3 font-semibold text-right">Prix</th>
+                <th className="px-6 py-3 font-semibold text-right">Produits</th>
+                <th className="px-6 py-3 font-semibold text-right">Livraison</th>
+                <th className="px-6 py-3 font-semibold text-right">Total client</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -261,12 +433,39 @@ export function PartenaireCommandesPageContent({
                         </button>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-slate-700">{commande.mode_paiement ?? "-"}</td>
+                    <td className="px-6 py-4 text-slate-700">
+                      <div>{commande.mode_paiement ?? "-"}</div>
+                      {!/^en[\s_]*ligne$/i.test(commande.mode_paiement ?? "") &&
+                        /^livr/i.test(commande.statut ?? "") && (
+                          commande.statutEncaissementSociete === "RECU" ? (
+                            <div className="mt-1 text-xs font-semibold text-emerald-700">
+                              Recu par la societe
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => confirmerEncaissementSociete(commande)}
+                              disabled={collectingId === commande.id}
+                              className="mt-2 rounded border border-amber-300 px-2 py-1 text-xs font-semibold text-amber-800 disabled:opacity-50"
+                            >
+                              {collectingId === commande.id
+                                ? "Confirmation..."
+                                : "Confirmer reception"}
+                            </button>
+                          )
+                        )}
+                    </td>
                     {!hideLivreur && (
                       <td className="px-6 py-4 text-slate-700">{commande.livreurName ?? "-"}</td>
                     )}
+                    <td className="px-6 py-4 text-right text-slate-700">
+                      {money(productAmount(commande))} TND
+                    </td>
+                    <td className="px-6 py-4 text-right text-slate-700">
+                      {money(deliveryAmount(commande))} TND
+                    </td>
                     <td className="px-6 py-4 text-right font-semibold text-slate-900">
-                      {commande.prix != null ? `${commande.prix} TND` : "-"}
+                      {money(totalAmount(commande))} TND
                     </td>
                   </tr>
                 );
@@ -309,6 +508,45 @@ export function PartenaireCommandesPageContent({
               Next
             </button>
           </div>
+        </div>
+      </section>
+
+      <section className="mt-6 border border-slate-200 bg-white">
+        <div className="border-b border-slate-200 px-5 py-4">
+          <h2 className="text-sm font-semibold text-slate-900">Factures partenaire</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-left text-xs text-slate-500">
+              <tr>
+                <th className="px-5 py-3">Date</th>
+                <th className="px-5 py-3">Type</th>
+                <th className="px-5 py-3 text-right">Montant</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {factureRows.map((facture) => (
+                <tr key={String(facture._id ?? `${facture.type}-${facture.dateTimle}`)}>
+                  <td className="px-5 py-3">{formatDate(facture.dateTimle)}</td>
+                  <td className="px-5 py-3">
+                    {facture.type === "ENTREPRISE_VERSE_PARTENAIRE"
+                      ? "Societe verse partenaire"
+                      : "Partenaire verse societe"}
+                  </td>
+                  <td className="px-5 py-3 text-right font-semibold">
+                    {money(Number(facture.montant))} TND
+                  </td>
+                </tr>
+              ))}
+              {factureRows.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="px-5 py-6 text-center text-slate-500">
+                    Aucune facture partenaire.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
     </DashboardShell>

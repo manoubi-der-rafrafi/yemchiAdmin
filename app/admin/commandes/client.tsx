@@ -17,6 +17,7 @@ type CommandeRow = {
   telArrivee?: number | string | null;
   clientName?: string | null;
   livreurName?: string | null;
+  livreurId?: string | null;
   zoneDepart?: string | null;
   sousZoneDepart?: string | null;
   zoneArrivee?: string | null;
@@ -31,12 +32,24 @@ type CommandeRow = {
   };
 };
 
+type LivreurOption = {
+  id: string;
+  nom: string;
+  prenom: string;
+  email?: string | null;
+};
+
+const normalizeStatut = (value?: string | null) =>
+  value?.trim().toLowerCase().replace(/[\s-]+/g, "_") ?? "";
+
 export function CommandePageContent({
   payload,
   commandes,
+  livreurs,
 }: {
   payload: JwtPayload;
   commandes: CommandeRow[];
+  livreurs: LivreurOption[];
 }) {
   const [items, setItems] = useState<CommandeRow[]>(commandes);
   const [statusFilter, setStatusFilter] = useState<string>("Toutes");
@@ -48,6 +61,7 @@ export function CommandePageContent({
   const [selectedClient, setSelectedClient] = useState<CommandeRow["clientInfo"] | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [pendingStatut, setPendingStatut] = useState<Record<string, string>>({});
+  const [pendingLivreur, setPendingLivreur] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setItems(commandes);
@@ -95,16 +109,47 @@ export function CommandePageContent({
   const updateStatut = async (commande: CommandeRow) => {
     const nouveauStatut = (pendingStatut[commande.id] ?? commande.statut)?.trim();
     if (!nouveauStatut) return;
+    const shouldChooseLivreur =
+      normalizeStatut(commande.statut) === "confirmer" && normalizeStatut(nouveauStatut) === "en_route";
+    const selectedLivreurId = pendingLivreur[commande.id]?.trim();
+    if (shouldChooseLivreur && !selectedLivreurId) return;
+
     try {
       setUpdatingId(commande.id);
-      await fetch(`/api/commande/${commande.id}/statut`, {
+      const body: Record<string, string> = { statut: nouveauStatut.trim() };
+      if (shouldChooseLivreur) body.transporteurId = selectedLivreurId;
+
+      const response = await fetch(`/api/commande/${commande.id}/statut`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ statut: nouveauStatut.trim() }),
+        body: JSON.stringify(body),
       });
+      if (!response.ok) throw new Error("Mise a jour refusee");
+
+      const selectedLivreur = livreurs.find((livreur) => livreur.id === selectedLivreurId);
+      const shouldClearLivreur =
+        normalizeStatut(commande.statut) === "en_route" && normalizeStatut(nouveauStatut) === "confirmer";
       setItems((prev) =>
-        prev.map((c) => (c.id === commande.id ? { ...c, statut: nouveauStatut.trim() } : c))
+        prev.map((c) =>
+          c.id === commande.id
+            ? {
+                ...c,
+                statut: nouveauStatut.trim(),
+                livreurId: shouldClearLivreur ? null : selectedLivreur?.id ?? c.livreurId,
+                livreurName: shouldClearLivreur
+                  ? null
+                  : selectedLivreur
+                    ? `${selectedLivreur.nom} ${selectedLivreur.prenom}`.trim()
+                    : c.livreurName,
+              }
+            : c
+        )
       );
+      setPendingLivreur((prev) => {
+        const next = { ...prev };
+        delete next[commande.id];
+        return next;
+      });
     } catch (error) {
       console.error("Erreur lors de la mise a jour du statut", error);
     } finally {
@@ -188,6 +233,10 @@ export function CommandePageContent({
             <tbody className="divide-y divide-slate-100">
               {paginated.map((commande) => {
                 const statut = commande.statut ?? "Sans statut";
+                const selectedStatut = pendingStatut[commande.id] ?? commande.statut ?? "";
+                const showLivreurChoice =
+                  normalizeStatut(commande.statut) === "confirmer" &&
+                  normalizeStatut(selectedStatut) === "en_route";
                 return (
                   <tr key={commande.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 font-semibold text-slate-900">
@@ -213,7 +262,7 @@ export function CommandePageContent({
                       </span>
                       <div className="mt-2 flex gap-2 items-center">
                         <select
-                          value={pendingStatut[commande.id] ?? commande.statut ?? ""}
+                          value={selectedStatut}
                           onChange={(e) =>
                             setPendingStatut((prev) => ({
                               ...prev,
@@ -231,10 +280,34 @@ export function CommandePageContent({
                             </option>
                           ))}
                         </select>
+                        {showLivreurChoice && (
+                          <select
+                            value={pendingLivreur[commande.id] ?? ""}
+                            onChange={(e) =>
+                              setPendingLivreur((prev) => ({
+                                ...prev,
+                                [commande.id]: e.target.value,
+                              }))
+                            }
+                            className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
+                          >
+                            <option value="" disabled>
+                              Choisir un livreur
+                            </option>
+                            {livreurs.map((livreur) => (
+                              <option key={livreur.id} value={livreur.id}>
+                                {`${livreur.nom} ${livreur.prenom}`.trim()}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                         <button
                           type="button"
                           onClick={() => updateStatut(commande)}
-                          disabled={updatingId === commande.id}
+                          disabled={
+                            updatingId === commande.id ||
+                            (showLivreurChoice && !pendingLivreur[commande.id])
+                          }
                           className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                         >
                           {updatingId === commande.id ? "Mise à jour..." : "Enregistrer"}

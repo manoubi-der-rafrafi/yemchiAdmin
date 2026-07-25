@@ -13,6 +13,7 @@ export type PartenaireRow = {
   statut?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+  solde: number;
 };
 
 const formatDate = (value?: string | null) => {
@@ -79,6 +80,7 @@ export function PartenairesPageContent({
                 <th className="px-6 py-3 font-semibold">Owner</th>
                 <th className="px-6 py-3 font-semibold">Statut</th>
                 <th className="px-6 py-3 font-semibold">Creation</th>
+                <th className="px-6 py-3 font-semibold text-right">Solde</th>
                 <th className="px-6 py-3 font-semibold text-right">Action</th>
               </tr>
             </thead>
@@ -96,6 +98,18 @@ export function PartenairesPageContent({
                   </td>
                   <td className="px-6 py-4 text-slate-700">{formatDate(partner.createdAt)}</td>
                   <td className="px-6 py-4 text-right">
+                    <div className={`font-semibold ${partner.solde >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                      {Math.abs(partner.solde).toFixed(3)} TND
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {partner.solde > 0
+                        ? "Societe doit partenaire"
+                        : partner.solde < 0
+                          ? "Partenaire doit societe"
+                          : "Equilibre"}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-right">
                     <Link
                       href={`/admin/partenaires/${partner.id}`}
                       className="inline-flex rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
@@ -108,7 +122,7 @@ export function PartenairesPageContent({
 
               {filteredPartners.length === 0 && (
                 <tr>
-                  <td className="px-6 py-6 text-center text-slate-500" colSpan={6}>
+                  <td className="px-6 py-6 text-center text-slate-500" colSpan={7}>
                     Aucun partenaire a afficher.
                   </td>
                 </tr>

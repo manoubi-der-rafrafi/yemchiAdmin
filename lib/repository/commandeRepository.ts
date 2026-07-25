@@ -3,6 +3,21 @@ import { connectDB } from "../config/db";
 import CommandeModel, { type Commande } from "../models/commande";
 import "../models/utilisateur"; // ensure Utilisateur schema is registered for populate
 
+const toDouble = (input: unknown) => ({
+  $convert: {
+    input,
+    to: "double",
+    onError: 0,
+    onNull: 0,
+  },
+});
+
+const halfPrix = () => ({ $divide: [toDouble("$prix"), 2] });
+const livreurAmount = () => toDouble({ $ifNull: ["$prixLivreur", halfPrix()] });
+const societeAmount = () => toDouble({ $ifNull: ["$prixSociete", halfPrix()] });
+const produitsPartenaireAmount = () =>
+  toDouble({ $ifNull: ["$prixProduitsPartenaire", 0] });
+
 export const commandeRepository = {
   buildTransporteurMatch(livreurId: string) {
     const matchTransporteur: Record<string, unknown> = { transporteurId: livreurId };
@@ -55,16 +70,7 @@ export const commandeRepository = {
       {
         $group: {
           _id: null,
-          total: {
-            $sum: {
-              $convert: {
-                input: { $ifNull: ["$prixLivreur", { $divide: ["$prix", 2] }] },
-                to: "double",
-                onError: 0,
-                onNull: 0,
-              },
-            },
-          },
+          total: { $sum: livreurAmount() },
         },
       },
     ]);
@@ -88,16 +94,7 @@ export const commandeRepository = {
       {
         $group: {
           _id: null,
-          total: {
-            $sum: {
-              $convert: {
-                input: { $ifNull: ["$prixLivreur", { $divide: ["$prix", 2] }] },
-                to: "double",
-                onError: 0,
-                onNull: 0,
-              },
-            },
-          },
+          total: { $sum: livreurAmount() },
         },
       },
     ]);
@@ -123,12 +120,21 @@ export const commandeRepository = {
           _id: null,
           total: {
             $sum: {
-              $convert: {
-                input: { $ifNull: ["$prixSociete", { $divide: ["$prix", 2] }] },
-                to: "double",
-                onError: 0,
-                onNull: 0,
-              },
+              $add: [
+                societeAmount(),
+                {
+                  $cond: [
+                    {
+                      $or: [
+                        { $eq: ["$sourceCommande", "B2C"] },
+                        { $ne: [{ $ifNull: ["$partenaireId", null] }, null] },
+                      ],
+                    },
+                    produitsPartenaireAmount(),
+                    0,
+                  ],
+                },
+              ],
             },
           },
         },
