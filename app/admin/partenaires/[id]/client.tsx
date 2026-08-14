@@ -79,7 +79,6 @@ export function PartenaireCommandesPageContent({
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [collectingId, setCollectingId] = useState<string | null>(null);
   const [pendingStatut, setPendingStatut] = useState<Record<string, string>>({});
   const [factureRows, setFactureRows] = useState(factures);
   const pageSize = 10;
@@ -194,36 +193,6 @@ export function PartenaireCommandesPageContent({
       console.error("Erreur lors de la mise a jour du statut", error);
     } finally {
       setUpdatingId(null);
-    }
-  };
-
-  const confirmerEncaissementSociete = async (commande: PartnerCommandeRow) => {
-    try {
-      setCollectingId(commande.id);
-      const response = await fetch(
-        `/api/commande/${commande.id}/encaissement-societe`,
-        { method: "PATCH" }
-      );
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(payload?.message ?? "Encaissement impossible.");
-      }
-      setRows((current) =>
-        current.map((item) =>
-          item.id === commande.id
-            ? {
-                ...item,
-                statutEncaissementSociete: "RECU",
-                dateEncaissementSociete:
-                  payload?.dateEncaissementSociete ?? new Date().toISOString(),
-              }
-            : item
-        )
-      );
-    } catch (error) {
-      console.error("Erreur lors de la confirmation de l'encaissement", error);
-    } finally {
-      setCollectingId(null);
     }
   };
 
@@ -435,25 +404,6 @@ export function PartenaireCommandesPageContent({
                     </td>
                     <td className="px-6 py-4 text-slate-700">
                       <div>{commande.mode_paiement ?? "-"}</div>
-                      {!/^en[\s_]*ligne$/i.test(commande.mode_paiement ?? "") &&
-                        /^livr/i.test(commande.statut ?? "") && (
-                          commande.statutEncaissementSociete === "RECU" ? (
-                            <div className="mt-1 text-xs font-semibold text-emerald-700">
-                              Recu par la societe
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => confirmerEncaissementSociete(commande)}
-                              disabled={collectingId === commande.id}
-                              className="mt-2 rounded border border-amber-300 px-2 py-1 text-xs font-semibold text-amber-800 disabled:opacity-50"
-                            >
-                              {collectingId === commande.id
-                                ? "Confirmation..."
-                                : "Confirmer reception"}
-                            </button>
-                          )
-                        )}
                     </td>
                     {!hideLivreur && (
                       <td className="px-6 py-4 text-slate-700">{commande.livreurName ?? "-"}</td>
