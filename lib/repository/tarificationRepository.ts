@@ -3,6 +3,7 @@ import MajorationTarifModel from "../models/majorationTarif";
 import TarificationVehiculeModel, {
   type TypeVehicule,
 } from "../models/tarificationVehicule";
+import RegleBlocageLivreurModel from "../models/regleBlocageLivreur";
 
 export const tarificationRepository = {
   async findAllTarifs() {
@@ -45,5 +46,29 @@ export const tarificationRepository = {
   async createMajoration(data: Record<string, unknown>) {
     await connectDB();
     return MajorationTarifModel.create(data);
+  },
+
+  async findAllReglesBlocage() {
+    await connectDB();
+    return RegleBlocageLivreurModel.find().sort({ dateDebut: -1 }).exec();
+  },
+
+  async findActiveReglesBlocage() {
+    await connectDB();
+    return RegleBlocageLivreurModel.find({ dateFin: null }).exec();
+  },
+
+  async closeReglesBlocage(ids: string[], dateFin: Date) {
+    await connectDB();
+    if (ids.length === 0) return;
+    await RegleBlocageLivreurModel.updateMany(
+      { _id: { $in: ids } },
+      { $set: { dateFin } }
+    ).exec();
+  },
+
+  async createRegleBlocage(data: Record<string, unknown>) {
+    await connectDB();
+    return RegleBlocageLivreurModel.create(data);
   },
 };

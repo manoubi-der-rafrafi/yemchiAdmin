@@ -61,6 +61,19 @@ const serializeMajoration = (document: any) => {
   };
 };
 
+const serializeRegleBlocage = (document: any) => {
+  const regle = document.toObject ? document.toObject() : document;
+  return {
+    id: regle._id.toString(),
+    montantBlocage: numericValue(regle.montantBlocage),
+    pourcentageReglement: numericValue(regle.pourcentageReglement),
+    dateDebut: isoValue(regle.dateDebut),
+    dateFin: isoValue(regle.dateFin),
+    createdAt: isoValue(regle.createdAt),
+    createdByAdminId: regle.createdByAdminId,
+  };
+};
+
 const errorResponse = (error: unknown) => {
   console.error("Tarification admin error", error);
   const message = error instanceof Error ? error.message : "Operation impossible";
@@ -72,13 +85,15 @@ export async function GET() {
   if (!admin) return NextResponse.json({ message: "Non autorise" }, { status: 401 });
 
   try {
-    const [tarifs, majorations] = await Promise.all([
+    const [tarifs, majorations, reglesBlocage] = await Promise.all([
       tarificationAdminService.listTarifs(),
       tarificationAdminService.listMajorations(),
+      tarificationAdminService.listReglesBlocage(),
     ]);
     return NextResponse.json({
       tarifs: tarifs.map(serializeTarif),
       majorations: majorations.map(serializeMajoration),
+      reglesBlocage: reglesBlocage.map(serializeRegleBlocage),
     });
   } catch (error) {
     return errorResponse(error);
@@ -96,6 +111,14 @@ export async function POST(request: Request) {
     if (body?.resource === "majoration") {
       const majoration = await tarificationAdminService.createMajoration(body?.data ?? {}, adminId);
       return NextResponse.json(serializeMajoration(majoration), { status: 201 });
+    }
+
+    if (body?.resource === "blocage-livreur") {
+      const regle = await tarificationAdminService.activateRegleBlocage(
+        body?.data ?? {},
+        adminId
+      );
+      return NextResponse.json(serializeRegleBlocage(regle), { status: 201 });
     }
 
     const tarif = await tarificationAdminService.activateTarif(

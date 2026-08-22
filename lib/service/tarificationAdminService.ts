@@ -21,6 +21,11 @@ type MajorationInput = {
   descriptionCause?: unknown;
 };
 
+type RegleBlocageInput = {
+  montantBlocage?: unknown;
+  pourcentageReglement?: unknown;
+};
+
 const numberField = (value: unknown, field: string) => {
   const parsed = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) {
@@ -122,6 +127,39 @@ export const tarificationAdminService = {
       dateFin,
       descriptionCause,
       createdAt: new Date(),
+      createdByAdminId: adminId,
+    });
+  },
+
+  listReglesBlocage() {
+    return tarificationRepository.findAllReglesBlocage();
+  },
+
+  async activateRegleBlocage(input: RegleBlocageInput, adminId: string) {
+    const montantBlocage = numberField(input.montantBlocage, "montantBlocage");
+    const pourcentageReglement = numberField(
+      input.pourcentageReglement,
+      "pourcentageReglement"
+    );
+    if (montantBlocage <= 0) {
+      throw new Error("Le montant de blocage doit etre superieur a zero");
+    }
+    if (pourcentageReglement <= 0 || pourcentageReglement > 100) {
+      throw new Error("Le pourcentage de reglement doit etre compris entre 0 et 100");
+    }
+
+    const dateDebut = new Date();
+    const active = await tarificationRepository.findActiveReglesBlocage();
+    await tarificationRepository.closeReglesBlocage(
+      active.map((regle) => regle._id.toString()),
+      dateDebut
+    );
+    return tarificationRepository.createRegleBlocage({
+      montantBlocage: decimal(montantBlocage),
+      pourcentageReglement: decimal(pourcentageReglement),
+      dateDebut,
+      dateFin: null,
+      createdAt: dateDebut,
       createdByAdminId: adminId,
     });
   },
