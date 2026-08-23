@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { JwtPayload } from "@/lib/utils/jwt";
+import type { PartnerFinancialLedger } from "@/lib/finance/partenaireLedger";
 import { COMMANDE_STATUTS } from "@/lib/constants/commande-statut";
 import { DashboardShell } from "../../dashboard/shell";
 import {
@@ -66,6 +68,7 @@ export function PartenaireCommandesPageContent({
   factures,
   totalEntrepriseVersePartenaire,
   totalPartenaireVerseEntreprise,
+  registreFinancier,
 }: {
   payload: JwtPayload;
   partenaire: PartenaireDetail;
@@ -73,7 +76,9 @@ export function PartenaireCommandesPageContent({
   factures: FacturePartenaireRow[];
   totalEntrepriseVersePartenaire: number;
   totalPartenaireVerseEntreprise: number;
+  registreFinancier: PartnerFinancialLedger;
 }) {
+  const router = useRouter();
   const [rows, setRows] = useState<PartnerCommandeRow[]>(commandes);
   const [statusFilter, setStatusFilter] = useState("Toutes");
   const [search, setSearch] = useState("");
@@ -125,10 +130,7 @@ export function PartenaireCommandesPageContent({
     0
   );
   const argentChezPartenaire = onlineRows.reduce((sum, commande) => sum + totalAmount(commande), 0);
-  const produitsCash = cashRows.reduce((sum, commande) => sum + productAmount(commande), 0);
-  const livraisonOnline = onlineRows.reduce((sum, commande) => sum + deliveryAmount(commande), 0);
-  const soldePartenaire =
-    produitsCash - livraisonOnline - entrepriseVerse + partenaireVerse;
+  const soldePartenaire = registreFinancier.soldeNet;
   const soldeEpsilon = 0.0005;
   const societeDoitPayer = soldePartenaire > soldeEpsilon;
   const partenaireDoitPayer = soldePartenaire < -soldeEpsilon;
@@ -189,6 +191,7 @@ export function PartenaireCommandesPageContent({
           commandeItem.id === commande.id ? { ...commandeItem, statut: nouveauStatut } : commandeItem
         )
       );
+      router.refresh();
     } catch (error) {
       console.error("Erreur lors de la mise a jour du statut", error);
     } finally {
@@ -250,7 +253,10 @@ export function PartenaireCommandesPageContent({
               externalBusinessId={partenaire.externalBusinessId}
               type="ENTREPRISE_VERSE_PARTENAIRE"
               label="Societe verse partenaire"
-              onCreated={(facture) => setFactureRows((current) => [facture, ...current])}
+              onCreated={(facture) => {
+                setFactureRows((current) => [facture, ...current]);
+                router.refresh();
+              }}
             />
           ) : partenaireDoitPayer ? (
             <FacturePartenaireModal
@@ -258,7 +264,10 @@ export function PartenaireCommandesPageContent({
               externalBusinessId={partenaire.externalBusinessId}
               type="PARTENAIRE_VERSE_ENTREPRISE"
               label="Partenaire verse societe"
-              onCreated={(facture) => setFactureRows((current) => [facture, ...current])}
+              onCreated={(facture) => {
+                setFactureRows((current) => [facture, ...current]);
+                router.refresh();
+              }}
             />
           ) : (
             <span className="text-sm font-medium text-slate-500">
@@ -271,6 +280,8 @@ export function PartenaireCommandesPageContent({
           </span>
         </div>
       </section>
+
+      <PartnerProductSettlementRegister ledger={registreFinancier} money={money} />
 
       <section className="rounded-2xl border border-white/70 bg-white/80 backdrop-blur shadow-sm shadow-[0_18px_60px_rgba(14,165,233,0.08)]">
         <div className="flex flex-wrap items-center gap-3 px-6 py-4">
@@ -500,5 +511,156 @@ export function PartenaireCommandesPageContent({
         </div>
       </section>
     </DashboardShell>
+  );
+}
+
+function PartnerProductSettlementRegister({
+  ledger,
+  money,
+}: {
+  ledger: PartnerFinancialLedger;
+  money: (value: number) => string;
+}) {
+  const horsLigne = ledger.commandesProduits.filter(
+    (commande) => commande.modePaiement === "HORS_LIGNE"
+  );
+  const enLigne = ledger.commandesProduits.filter(
+    (commande) => commande.modePaiement === "EN_LIGNE"
+  );
+  const statusLabel = (status: string) => {
+    if (status === "PAYE_DIRECTEMENT") return "Paye directement";
+    if (status === "PAYE") return "Paye";
+    if (status === "PARTIEL") return "Partiellement paye";
+    return "Non paye";
+  };
+  const statusClass = (status: string) => {
+    if (status === "PAYE" || status === "PAYE_DIRECTEMENT") {
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    }
+    if (status === "PARTIEL") return "border-amber-200 bg-amber-50 text-amber-700";
+    return "border-rose-200 bg-rose-50 text-rose-700";
+  };
+
+  return (
+    <section className="mb-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-200 px-5 py-4">
+        <h2 className="text-base font-semibold text-slate-900">Registre de paiement des produits</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Les factures societe vers partenaire sont affectees en FIFO aux produits hors ligne.
+          Les produits des commandes en ligne sont deja payes directement au partenaire.
+        </p>
+      </div>
+
+      <div className="grid gap-px bg-slate-200 md:grid-cols-2 xl:grid-cols-5">
+        {[
+          ["Produits hors ligne", ledger.produitsHorsLigneInitial],
+          ["Produits deja regles", ledger.produitsHorsLignePayes],
+          ["Reste produits a payer", ledger.produitsHorsLigneRestants],
+          ["Payes directement en ligne", ledger.produitsPayesDirectementEnLigne],
+          ["Livraisons en ligne restantes", ledger.livraisonsEnLigneRestantes],
+        ].map(([label, value]) => (
+          <div key={String(label)} className="bg-white p-5">
+            <p className="text-xs font-semibold text-slate-500">{label}</p>
+            <p className="mt-2 text-xl font-semibold text-slate-900">
+              {money(Number(value))} TND
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="divide-y divide-slate-100 border-t border-slate-200">
+        {horsLigne.map((commande) => (
+          <details key={commande.commandeId} className="group">
+            <summary className="cursor-pointer list-none px-5 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <span className="font-semibold text-slate-900">
+                    Commande {commande.externalOrderId || commande.commandeId}
+                  </span>
+                  <span className={`ml-3 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusClass(commande.statut)}`}>
+                    {statusLabel(commande.statut)}
+                  </span>
+                </div>
+                <div className="text-sm text-slate-600">
+                  Paye {money(commande.montantPaye)} / {money(commande.montantInitial)} TND ·
+                  <strong className="ml-1 text-rose-700">reste {money(commande.resteAPayer)} TND</strong>
+                </div>
+              </div>
+            </summary>
+            <div className="overflow-x-auto border-t border-slate-100">
+              <table className="w-full min-w-[760px] text-xs">
+                <thead className="bg-slate-50 text-left text-slate-500">
+                  <tr>
+                    <th className="px-5 py-2">Produit</th><th className="px-5 py-2">Quantite</th>
+                    <th className="px-5 py-2 text-right">Prix unitaire</th>
+                    <th className="px-5 py-2 text-right">Total</th>
+                    <th className="px-5 py-2 text-right">Paye</th>
+                    <th className="px-5 py-2 text-right">Reste</th>
+                    <th className="px-5 py-2">Etat</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {commande.produits.map((produit) => (
+                    <tr key={produit.ligneId}>
+                      <td className="px-5 py-2 font-medium text-slate-800">{produit.nom}</td>
+                      <td className="px-5 py-2">{produit.quantite}</td>
+                      <td className="px-5 py-2 text-right">{money(produit.prixUnitaire)}</td>
+                      <td className="px-5 py-2 text-right">{money(produit.montantInitial)}</td>
+                      <td className="px-5 py-2 text-right text-emerald-700">{money(produit.montantPaye)}</td>
+                      <td className="px-5 py-2 text-right font-semibold">{money(produit.resteAPayer)}</td>
+                      <td className="px-5 py-2">
+                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusClass(produit.statut)}`}>
+                          {statusLabel(produit.statut)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        ))}
+        {horsLigne.length === 0 && (
+          <p className="px-5 py-5 text-sm text-slate-500">Aucun produit hors ligne a regler.</p>
+        )}
+      </div>
+
+      <details className="border-t border-slate-200">
+        <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-slate-700">
+          Produits payes directement en ligne ({enLigne.length})
+        </summary>
+        <div className="divide-y divide-slate-100 border-t border-slate-100 px-5">
+          {enLigne.map((commande) => (
+            <div key={commande.commandeId} className="flex justify-between py-3 text-sm">
+              <span>{commande.externalOrderId || commande.commandeId}</span>
+              <span className="font-semibold text-emerald-700">{money(commande.montantInitial)} TND payes</span>
+            </div>
+          ))}
+        </div>
+      </details>
+
+      <details className="border-t border-slate-200">
+        <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-slate-700">
+          Affectations des factures ({ledger.factures.filter((facture) => facture.affectations.length > 0).length})
+        </summary>
+        <div className="divide-y divide-slate-100 border-t border-slate-100 px-5">
+          {ledger.factures
+            .filter((facture) => facture.affectations.length > 0)
+            .map((facture) => (
+              <div key={facture.factureId} className="py-3 text-xs">
+                <p className="font-semibold text-slate-800">
+                  Facture {facture.factureId} · {money(facture.montantAffecte)} TND affectes
+                </p>
+                {facture.affectations.map((affectation) => (
+                  <div key={`${affectation.ligneId}-${affectation.montant}`} className="mt-1 flex justify-between text-slate-500">
+                    <span>{affectation.libelle} · commande {affectation.commandeId}</span>
+                    <span>{money(affectation.montant)} TND</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+        </div>
+      </details>
+    </section>
   );
 }

@@ -5,6 +5,8 @@ import { partenaireService } from "@/lib/service/partenaireService";
 import { commandeService } from "@/lib/service/commandeService";
 import { facturePartenaireService } from "@/lib/service/facturePartenaireService";
 import { type Partenaire } from "@/lib/models/partenaire";
+import { produitRepository } from "@/lib/repository/produitRepository";
+import { buildPartnerFinancialLedger } from "@/lib/finance/partenaireLedger";
 import { PartenairesPageContent, type PartenaireRow } from "./client";
 
 const extractRole = (payload: Record<string, unknown>) => {
@@ -49,30 +51,37 @@ export default async function AdminPartenairesPage() {
         commandeService.list(filter as any),
         facturePartenaireService.list(id, externalBusinessId),
       ]);
-      const delivered = commandes.filter((commande) => /^livr/i.test(commande.statut ?? ""));
-      const produitsCash = delivered
-        .filter(
-          (commande) =>
-            !/^en[\s_]*ligne$/i.test(commande.modePaiement ?? commande.mode_paiement ?? "")
-        )
-        .reduce((sum, commande) => sum + Number(commande.prixProduitsPartenaire ?? 0), 0);
-      const livraisonOnline = delivered
-        .filter((commande) =>
-          /^en[\s_]*ligne$/i.test(commande.modePaiement ?? commande.mode_paiement ?? "")
-        )
-        .reduce(
-          (sum, commande) => sum + Number(commande.prixLivraison ?? commande.prix ?? 0),
-          0
-        );
-      const accepted = factures.filter(
-        (facture) => !facture.confirmer || facture.confirmer === "ACCEPTER"
+      const produits = await produitRepository.findByCommandeIds(
+        commandes.map((commande) => commande._id.toString())
       );
-      const entrepriseVerse = accepted
-        .filter((facture) => facture.type === "ENTREPRISE_VERSE_PARTENAIRE")
-        .reduce((sum, facture) => sum + Number(facture.montant), 0);
-      const partenaireVerse = accepted
-        .filter((facture) => facture.type === "PARTENAIRE_VERSE_ENTREPRISE")
-        .reduce((sum, facture) => sum + Number(facture.montant), 0);
+      const registre = buildPartnerFinancialLedger(
+        commandes.map((commande) => ({
+          id: commande._id.toString(),
+          externalOrderId: commande.externalOrderId,
+          date: commande.dateDemande ?? commande.date_demande,
+          statut: commande.statut,
+          modePaiement: commande.modePaiement ?? commande.mode_paiement,
+          prixProduitsPartenaire: commande.prixProduitsPartenaire,
+          prixLivraison: commande.prixLivraison,
+          prix: commande.prix,
+        })),
+        produits.map((produit: any) => ({
+          id: produit._id.toString(),
+          commandeId: String(produit.commandeId),
+          externalProductId: produit.externalProductId ?? null,
+          nom: produit.nom ?? null,
+          quantite: produit.quantite ?? 1,
+          prix: Number(produit.prix ?? 0),
+          prixTotalLigne: produit.prixTotalLigne == null ? null : Number(produit.prixTotalLigne),
+        })),
+        factures.map((facture) => ({
+          id: facture._id.toString(),
+          montant: Number(facture.montant),
+          date: facture.dateTimle,
+          type: facture.type,
+          confirmer: facture.confirmer,
+        }))
+      );
 
       return {
         id,
@@ -82,7 +91,8 @@ export default async function AdminPartenairesPage() {
         statut: partenaire.statut ?? "ACTIF",
         createdAt: toIso(partenaire.createdAt),
         updatedAt: toIso(partenaire.updatedAt),
-        solde: produitsCash - livraisonOnline - entrepriseVerse + partenaireVerse,
+        solde: registre.soldeNet,
+        resteProduits: registre.produitsHorsLigneRestants,
       };
     })
   );

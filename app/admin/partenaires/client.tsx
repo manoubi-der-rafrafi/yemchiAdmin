@@ -14,6 +14,7 @@ export type PartenaireRow = {
   createdAt?: string | null;
   updatedAt?: string | null;
   solde: number;
+  resteProduits: number;
 };
 
 const formatDate = (value?: string | null) => {
@@ -72,7 +73,7 @@ export function PartenairesPageContent({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-sm">
+          <table className="w-full min-w-[980px] text-sm">
             <thead className="border-t border-b border-slate-100 bg-slate-50/60 text-left text-slate-500">
               <tr>
                 <th className="px-6 py-3 font-semibold">Partenaire</th>
@@ -81,6 +82,7 @@ export function PartenairesPageContent({
                 <th className="px-6 py-3 font-semibold">Statut</th>
                 <th className="px-6 py-3 font-semibold">Creation</th>
                 <th className="px-6 py-3 font-semibold text-right">Solde</th>
+                <th className="px-6 py-3 font-semibold text-right">Reste produits</th>
                 <th className="px-6 py-3 font-semibold text-right">Action</th>
               </tr>
             </thead>
@@ -110,6 +112,14 @@ export function PartenairesPageContent({
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right">
+                    <div className={`font-semibold ${partner.resteProduits > 0 ? "text-rose-700" : "text-emerald-700"}`}>
+                      {partner.resteProduits.toFixed(3)} TND
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {partner.resteProduits > 0 ? "A payer au partenaire" : "Produits regles"}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-right">
                     <Link
                       href={`/admin/partenaires/${partner.id}`}
                       className="inline-flex rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
@@ -122,7 +132,7 @@ export function PartenairesPageContent({
 
               {filteredPartners.length === 0 && (
                 <tr>
-                  <td className="px-6 py-6 text-center text-slate-500" colSpan={7}>
+                  <td className="px-6 py-6 text-center text-slate-500" colSpan={8}>
                     Aucun partenaire a afficher.
                   </td>
                 </tr>

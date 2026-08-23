@@ -5,6 +5,8 @@ import { commandeService } from "@/lib/service/commandeService";
 import { partenaireService } from "@/lib/service/partenaireService";
 import { facturePartenaireService } from "@/lib/service/facturePartenaireService";
 import { type Commande } from "@/lib/models/commande";
+import { produitRepository } from "@/lib/repository/produitRepository";
+import { buildPartnerFinancialLedger } from "@/lib/finance/partenaireLedger";
 import { PartenaireCommandesPageContent, type PartenaireDetail, type PartnerCommandeRow } from "./client";
 
 const extractRole = (payload: Record<string, unknown>) => {
@@ -100,18 +102,52 @@ export default async function AdminPartenaireDetailPage({
     };
   });
 
+  const produits = await produitRepository.findByCommandeIds(
+    commandesDto.map((commande) => commande.id)
+  );
+  const facturesDto = factures.map((facture) => ({
+    _id: facture._id.toString(),
+    montant: Number(facture.montant),
+    dateTimle: facture.dateTimle,
+    type: facture.type,
+    confirmer: facture.confirmer,
+  }));
+  const registreFinancier = buildPartnerFinancialLedger(
+    commandesDto.map((commande) => ({
+      id: commande.id,
+      externalOrderId: commande.externalOrderId,
+      date: commande.date_demande,
+      statut: commande.statut,
+      modePaiement: commande.mode_paiement,
+      prixProduitsPartenaire: commande.prixProduitsPartenaire,
+      prixLivraison: commande.prixLivraison,
+      prix: commande.prix,
+    })),
+    produits.map((produit: any) => ({
+      id: produit._id.toString(),
+      commandeId: String(produit.commandeId),
+      externalProductId: produit.externalProductId ?? null,
+      nom: produit.nom ?? null,
+      quantite: produit.quantite ?? 1,
+      prix: Number(produit.prix ?? 0),
+      prixTotalLigne: produit.prixTotalLigne == null ? null : Number(produit.prixTotalLigne),
+    })),
+    facturesDto.map((facture) => ({
+      id: facture._id,
+      montant: facture.montant,
+      date: facture.dateTimle,
+      type: facture.type,
+      confirmer: facture.confirmer,
+    }))
+  );
+
   return (
     <PartenaireCommandesPageContent
       payload={payload as JwtPayload}
       partenaire={partenaireDto}
       commandes={commandesDto}
-      factures={factures.map((facture) => ({
-        _id: facture._id.toString(),
-        montant: Number(facture.montant),
-        dateTimle: facture.dateTimle,
-        type: facture.type,
-        confirmer: facture.confirmer,
-      }))}
+      factures={facturesDto}
+      registreFinancier={registreFinancier}
       totalEntrepriseVersePartenaire={Number(totalEntrepriseVersePartenaire)}
       totalPartenaireVerseEntreprise={Number(totalPartenaireVerseEntreprise)}
     />
