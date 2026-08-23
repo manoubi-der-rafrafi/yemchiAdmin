@@ -52,6 +52,7 @@ export default async function TarificationLivreurDetailPage({
     totalFactureEntrepriseVerseLivreur,
     totalFactureLivreurVerseEntreprise,
     factures,
+    commandesLivree,
   ] = await Promise.all([
     commandeService.sumPrixByLivreurId(id),
     commandeService.sumPrixLivreeEnligneByTransporteurId(id),
@@ -59,8 +60,21 @@ export default async function TarificationLivreurDetailPage({
     factureService.sumMontantEntrepriseVerseLivreurByLivreurId(id),
     factureService.sumMontantLivreurVerseEntrepriseByLivreurId(id),
     factureService.listByLivreurId(id),
+    commandeService.listLivreeByTransporteurId(id),
   ]);
-  const commandesLivree = await commandeService.listLivreeByTransporteurId(id);
+  const totalProduitsB2c = commandesLivree.reduce((total: number, commande: any) => {
+    const modePaiement = String(commande.modePaiement ?? commande.mode_paiement ?? "")
+      .trim()
+      .replace(/\s+/g, "_")
+      .toUpperCase();
+    const isB2c =
+      String(commande.sourceCommande ?? commande.source_commande ?? "").toUpperCase() === "B2C" ||
+      Boolean(commande.partenaireId ?? commande.partenaire_id);
+    if (!isB2c || modePaiement === "EN_LIGNE") return total;
+    const montant = Number(commande.prixProduitsPartenaire ?? commande.prix_produits_partenaire ?? 0);
+    return total + (Number.isFinite(montant) && montant > 0 ? montant : 0);
+  }, 0);
+  const totalPartSocieteHorsLigne = Math.max(0, totalHorsEnligne - totalProduitsB2c);
   const commandesPlain = commandesLivree.map((commande: any) => ({
     _id: commande._id?.toString?.() ?? String(commande._id),
     dateDemande: commande.dateDemande ?? commande.date_demande ?? null,
@@ -68,6 +82,10 @@ export default async function TarificationLivreurDetailPage({
     prix: commande.prix ?? null,
     prixLivreur: commande.prixLivreur ?? null,
     prixSociete: commande.prixSociete ?? null,
+    prixProduitsPartenaire:
+      commande.prixProduitsPartenaire ?? commande.prix_produits_partenaire ?? null,
+    sourceCommande: commande.sourceCommande ?? commande.source_commande ?? null,
+    partenaireId: commande.partenaireId?.toString?.() ?? commande.partenaire_id ?? null,
     modePaiement: commande.modePaiement ?? null,
     mode_paiement: commande.mode_paiement ?? null,
     zonePrincipaleDepart: commande.zonePrincipaleDepart ?? commande.zone_principale_depart ?? null,
@@ -96,6 +114,8 @@ export default async function TarificationLivreurDetailPage({
       totalRevenue={totalRevenue}
       totalEnligne={totalEnligne}
       totalHorsEnligne={totalHorsEnligne}
+      totalPartSocieteHorsLigne={totalPartSocieteHorsLigne}
+      totalProduitsB2c={totalProduitsB2c}
       totalFactureEntrepriseVerseLivreur={totalFactureEntrepriseVerseLivreur}
       totalFactureLivreurVerseEntreprise={totalFactureLivreurVerseEntreprise}
     />

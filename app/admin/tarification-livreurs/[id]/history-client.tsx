@@ -11,6 +11,9 @@ type CommandeRow = {
   prix?: number | string | null;
   prixLivreur?: number | string | null;
   prixSociete?: number | string | null;
+  prixProduitsPartenaire?: number | string | null;
+  sourceCommande?: string | null;
+  partenaireId?: string | null;
   modePaiement?: string | null;
   mode_paiement?: string | null;
   zonePrincipaleDepart?: string | null;
@@ -151,7 +154,7 @@ export function CommandesHistoryTable({ commandes }: { commandes: CommandeRow[] 
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-[13px]" style={{ minWidth: 880 }}>
+        <table className="w-full text-[13px]" style={{ minWidth: 1020 }}>
           <thead className="border-t border-b border-slate-100 bg-slate-50/60 text-left text-slate-500">
             <tr>
               <th className="px-5 py-2.5 font-semibold">Date</th>
@@ -160,6 +163,7 @@ export function CommandesHistoryTable({ commandes }: { commandes: CommandeRow[] 
               <th className="px-5 py-2.5 font-semibold text-right">Prix</th>
               <th className="px-5 py-2.5 font-semibold text-right">Livreur</th>
               <th className="px-5 py-2.5 font-semibold text-right">Societe</th>
+              <th className="px-5 py-2.5 font-semibold text-right">Produits B2C</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -171,6 +175,10 @@ export function CommandesHistoryTable({ commandes }: { commandes: CommandeRow[] 
               const prix = typeof commande.prix === "string" ? Number(commande.prix) : commande.prix ?? 0;
               const prixLivreur = Number(commande.prixLivreur ?? prix / 2);
               const prixSociete = Number(commande.prixSociete ?? prix - prixLivreur);
+              const isB2c =
+                (commande.sourceCommande ?? "").toUpperCase() === "B2C" ||
+                Boolean(commande.partenaireId);
+              const prixProduitsB2c = Number(commande.prixProduitsPartenaire ?? 0);
 
               return (
                 <tr key={String(commande._id ?? Math.random())} className="hover:bg-slate-50/50">
@@ -184,12 +192,15 @@ export function CommandesHistoryTable({ commandes }: { commandes: CommandeRow[] 
                   <td className="px-5 py-3 text-right text-slate-700">{formatMoney(prix)} DT</td>
                   <td className="px-5 py-3 text-right text-slate-700">{formatMoney(prixLivreur)} DT</td>
                   <td className="px-5 py-3 text-right text-slate-700">{formatMoney(prixSociete)} DT</td>
+                  <td className="px-5 py-3 text-right text-slate-700">
+                    {isB2c ? `${formatMoney(prixProduitsB2c)} DT` : "-"}
+                  </td>
                 </tr>
               );
             })}
             {paginated.length === 0 && (
               <tr>
-                <td className="px-5 py-5 text-center text-slate-500" colSpan={6}>
+                <td className="px-5 py-5 text-center text-slate-500" colSpan={7}>
                   Aucune commande livree pour le moment.
                 </td>
               </tr>

@@ -24,6 +24,9 @@ type CommandeRow = {
   prix?: number | string | null;
   prixLivreur?: number | string | null;
   prixSociete?: number | string | null;
+  prixProduitsPartenaire?: number | string | null;
+  sourceCommande?: string | null;
+  partenaireId?: string | null;
   distanceKm?: number | null;
   vehicule?: string | null;
   modePaiement?: string | null;
@@ -46,6 +49,8 @@ export function TarificationLivreurDetailClient({
   totalRevenue,
   totalEnligne,
   totalHorsEnligne,
+  totalPartSocieteHorsLigne,
+  totalProduitsB2c,
   totalFactureEntrepriseVerseLivreur,
   totalFactureLivreurVerseEntreprise,
 }: {
@@ -57,6 +62,8 @@ export function TarificationLivreurDetailClient({
   totalRevenue: number;
   totalEnligne: number;
   totalHorsEnligne: number;
+  totalPartSocieteHorsLigne: number;
+  totalProduitsB2c: number;
   totalFactureEntrepriseVerseLivreur: number;
   totalFactureLivreurVerseEntreprise: number;
 }) {
@@ -151,11 +158,12 @@ export function TarificationLivreurDetailClient({
           </div>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-4">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           {[
             { label: "Gains livreur", value: `${formatMoney(totalRevenue)} DT` },
             { label: "Gains a verser (en ligne)", value: `${formatMoney(totalEnligne)} DT` },
-            { label: "Part societe a reverser", value: `${formatMoney(totalHorsEnligne)} DT` },
+            { label: "Part societe a reverser", value: `${formatMoney(totalPartSocieteHorsLigne)} DT` },
+            { label: "Produits B2C a reverser", value: `${formatMoney(totalProduitsB2c)} DT` },
             { label: specialLabel, value: `${formatMoney(specialValue)} DT` },
           ].map((item) => (
             <div
