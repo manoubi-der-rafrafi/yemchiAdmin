@@ -4,6 +4,7 @@ import { verifyJwt, type JwtPayload } from "@/lib/utils/jwt";
 import { utilisateurService } from "@/lib/service/utilisateurService";
 import { commandeService } from "@/lib/service/commandeService";
 import { factureService } from "@/lib/service/factureService";
+import { livreurDebtService } from "@/lib/service/livreurDebtService";
 import { TarificationLivreurDetailClient } from "./client";
 
 const extractRole = (payload: Record<string, unknown>) => {
@@ -53,6 +54,7 @@ export default async function TarificationLivreurDetailPage({
     totalFactureLivreurVerseEntreprise,
     factures,
     commandesLivree,
+    debtDetails,
   ] = await Promise.all([
     commandeService.sumPrixByLivreurId(id),
     commandeService.sumPrixLivreeEnligneByTransporteurId(id),
@@ -61,6 +63,7 @@ export default async function TarificationLivreurDetailPage({
     factureService.sumMontantLivreurVerseEntrepriseByLivreurId(id),
     factureService.listByLivreurId(id),
     commandeService.listLivreeByTransporteurId(id),
+    livreurDebtService.getDetails(id),
   ]);
   const totalProduitsB2c = commandesLivree.reduce((total: number, commande: any) => {
     const modePaiement = String(commande.modePaiement ?? commande.mode_paiement ?? "")
@@ -118,6 +121,7 @@ export default async function TarificationLivreurDetailPage({
       totalProduitsB2c={totalProduitsB2c}
       totalFactureEntrepriseVerseLivreur={totalFactureEntrepriseVerseLivreur}
       totalFactureLivreurVerseEntreprise={totalFactureLivreurVerseEntreprise}
+      debtDetails={debtDetails}
     />
   );
 }

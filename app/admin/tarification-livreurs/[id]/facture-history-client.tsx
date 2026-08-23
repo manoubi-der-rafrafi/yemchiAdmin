@@ -39,6 +39,7 @@ export function FactureHistoryTable({
   livreur,
   showTypeColumn = true,
   allowDecision = false,
+  onDecision,
 }: {
   factures: FactureRow[];
   title?: string;
@@ -52,6 +53,7 @@ export function FactureHistoryTable({
   } | null;
   showTypeColumn?: boolean;
   allowDecision?: boolean;
+  onDecision?: () => void;
 }) {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("tous");
   const [startDate, setStartDate] = useState<string>("");
@@ -172,6 +174,7 @@ export function FactureHistoryTable({
       }
       setRows((prev) => prev.filter((facture) => String(facture._id) !== String(detailFacture._id)));
       closeDetail();
+      onDecision?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors de la mise a jour.");
     } finally {
